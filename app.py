@@ -1,13 +1,11 @@
 from typing import Dict, Type
 import time
-# Define the Market class
-
-
 import os
-import time
 
 
+# Define the Market class
 class Market:
+
     def __init__(self, name, connected_cities, market_type):
         self.name = name
         self.connected_cities = connected_cities
@@ -15,7 +13,7 @@ class Market:
         self.market_inventory = {}
 
     def __repr__(self):
-        return str(f"[{self.name}, {self.connected_cities}, {self.market_type}]")
+        return self.name
 
     def set_market_inventory(self, market_inventory):
         self.market_inventory = market_inventory
@@ -29,14 +27,16 @@ class Market:
 
 # Define the Player class
 class Player:
-    def __init__(self, name, gold, location: Type[Market]) -> None:
+    location: Market
+
+    def __init__(self, name, gold, location) -> None:
         self.name = name
         self.gold = gold
-        self.location: Type[Market] = location
+        self.location = location
         self.inventory: Dict[str, int] = {}
 
     def __repr__(self):
-        return str(f"[{self.name}, {self.gold}, {self.inventory}, {self.location}]")
+        return str(f"[{self.name}, {self.gold}, {self.inventory}, {self.location.name}]")
 
     def purchase(self, quantity, item, item_price, market):
         if item not in market.market_inventory or market.market_inventory[item] < quantity or self.gold < quantity * item_price:
@@ -76,6 +76,7 @@ class Game:
         os.system('clear' if os.name == 'posix' else 'cls')
         while True:
             # Update the screen (print whatever information the player needs to know)
+            os.system('clear' if os.name == 'posix' else 'cls')
             self.print_game_status()
             # Wait for user input
             user_input = input("What do you want to do? ")
@@ -90,15 +91,15 @@ class Game:
 
     def print_game_status(self):
         # Just a placeholder, replace this with your game logic
-        print(f"It is currently day {self.day_count}")
+        print(f"It is currently day {self.day_count} and you are in {self.player.location.name}.")
 
     def process_input(self, user_input):
         if user_input == "1":
             # Travel
-            print(f"You are currently in {self.player.location}.")
+            print(f"You are currently in {self.player.location.name}.")
             print("Where would you like to go?")
             for i, city in enumerate(self.player.location.connected_cities):
-                print(f"{i+1}. {city.name}")
+                print(f"{i+1}. {city}")
             choice = input(
                 "Enter the number of the city you would like to travel to: ")
             try:
@@ -109,8 +110,8 @@ class Game:
                 print(
                     f"Invalid choice. Please enter a number between 1 and {len(self.player.location.connected_cities)}.")
                 return
-            self.player.location = self.player.location.connected_cities[choice-1]
-            print(f"You have arrived in {Player.location.name}.")
+            self.player.location = self.player.location.connected_cities[choice - 1]
+            print(f"You have arrived in {self.player.location.name}.")
         elif user_input == "2":
             # Trade
             print("You chose to trade.")
@@ -118,40 +119,35 @@ class Game:
             print("Invalid input.")
 
 
-# Define the trade goods dictionary
-trade_goods = {
-    "Copper Ore": 20,
-    "Iron Ore": 15,
-    "Gold Ore": 5,
-    "Wool Cloth": 30,
-    "Silk Cloth": 20,
-    "Mageweave Cloth": 10,
-    "Light Leather": 25,
-    "Medium Leather": 20,
-    "Heavy Leather": 15,
-    "Linen Bandage": 40,
-    "Wool Bandage": 30,
-    "Silk Bandage": 20,
-}
+trade_goods = [
+    {"name": "Iron Ore", "quantity": 50, "price": 300},
+    {"name": "Timber", "quantity": 100, "price": 200},
+    {"name": "Wool", "quantity": 80, "price": 100},
+    {"name": "Grain", "quantity": 120, "price": 50},
+    {"name": "Wine", "quantity": 60, "price": 400},
+    {"name": "Cloth", "quantity": 30, "price": 500},
+    {"name": "Salt", "quantity": 40, "price": 150},
+    {"name": "Fish", "quantity": 70, "price": 100},
+    {"name": "Cheese", "quantity": 90, "price": 250},
+    {"name": "Beer", "quantity": 60, "price": 350},
+]
 
 
-# Define the player
-stormwind = Market(
-    "Stormwind", ["Iron Forge", "Darnassus", "Exodar"], "Major City")
-iron_forge = Market(
-    "Iron Forge", ["Stormwind", "Exodar", "Darnassus"], "Major City")
-darnassus = Market(
-    "Darnassus", ["Stormwind", "Iron Forge", "Exodar"], "Major City")
-exodar = Market(
-    "Exodar", ["Iron Forge", "Darnassus", "Stormwind"], "Major City")
+stormwind = Market("Stormwind", [], "Major City")
+iron_forge = Market("Iron Forge", [], "Major City")
+darnassus = Market("Darnassus", [], "Major City")
+exodar = Market("Exodar", [], "Major City")
 
+stormwind.connected_cities = [iron_forge, darnassus, exodar]
+iron_forge.connected_cities = [stormwind, exodar, darnassus]
+darnassus.connected_cities = [stormwind, iron_forge, exodar]
+exodar.connected_cities = [iron_forge, darnassus, stormwind]
 
-# set all the markets to have the same inventory
 for city in [stormwind, iron_forge, darnassus, exodar]:
     city.set_market_inventory(trade_goods)
 
 maventa = Player("Maventa", 1000, stormwind)
 
-# run the game loop
+
 game = Game(maventa)
 game.game_loop()
