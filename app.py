@@ -3,7 +3,6 @@ import time
 import os
 
 
-# Define the Market class
 class Market:
 
     def __init__(self, name, connected_cities, market_type):
@@ -25,7 +24,6 @@ class Market:
         return self.market_inventory
 
 
-# Define the Player class
 class Player:
     location: Market
 
@@ -70,6 +68,9 @@ class Game:
     def __init__(self, player: Type[Player]) -> None:
         self.day_count = 1
         self.player = player
+        self.menu = ["Travel", "Market", "Inventory", "Quit"]
+        self.menu_selection = None
+        self.user_last_action = None
 
     def game_loop(self):
         # Clear the screen
@@ -78,43 +79,75 @@ class Game:
             # Update the screen (print whatever information the player needs to know)
             os.system('clear' if os.name == 'posix' else 'cls')
             self.print_game_status()
-            # Wait for user input
-            user_input = input("What do you want to do? ")
+
+            self.game_menu()
+
             # Process user input (do whatever the game needs to do based on the input)
-            self.process_input(user_input)
+            self.process_input()
             # Break loop if the user wants to quit (you may want to handle this differently)
-            if user_input.lower() == "quit":
+            if self.menu_selection == self.menu[3]:
                 break
             # Optional: wait a short period before the next iteration
             time.sleep(0.1)
             self.day_count += 1
 
     def print_game_status(self):
-        # Just a placeholder, replace this with your game logic
-        print(f"It is currently day {self.day_count} and you are in {self.player.location.name}.")
+        print("Day:", self.day_count)
+        print("Location:", self.player.location)
+        print("Gold:", self.player.gold)
+        print("Last Action:", self.user_last_action)
 
-    def process_input(self, user_input):
-        if user_input == "1":
-            # Travel
-            print(f"You are currently in {self.player.location.name}.")
-            print("Where would you like to go?")
-            for i, city in enumerate(self.player.location.connected_cities):
-                print(f"{i+1}. {city}")
-            choice = input(
-                "Enter the number of the city you would like to travel to: ")
-            try:
-                choice = int(choice)
-                if choice < 1 or choice > len(self.player.location.connected_cities):
-                    raise ValueError
-            except ValueError:
-                print(
-                    f"Invalid choice. Please enter a number between 1 and {len(self.player.location.connected_cities)}.")
-                return
-            self.player.location = self.player.location.connected_cities[choice - 1]
-            print(f"You have arrived in {self.player.location.name}.")
-        elif user_input == "2":
-            # Trade
-            print("You chose to trade.")
+    def game_menu(self):
+        print("What would you like to do?")
+        for i, option in enumerate(self.menu):
+            print(f"{i+1}. {option}")
+        choice = input("Enter the number of your choice: ")
+        try:
+            choice = int(choice)
+            if choice < 1 or choice > len(self.menu):
+                raise ValueError
+        except ValueError:
+            print(
+                f"Invalid choice. Please enter a number between 1 and {len(self.menu)}.")
+            return self.game_menu()
+        self.menu_selection = self.menu[choice - 1]
+
+    def travel(self):
+        os.system('clear' if os.name == 'posix' else 'cls')
+        self.print_game_status()
+        print("Where would you like to go?")
+        for i, city in enumerate(self.player.location.connected_cities):
+            print(f"{i+1}. {city}")
+        choice = input(
+            "Enter:")
+        try:
+            choice = int(choice)
+            if choice < 1 or choice > len(self.player.location.connected_cities):
+                raise ValueError
+        except ValueError:
+            print(
+                f"Invalid choice. Please enter a number between 1 and {len(self.player.location.connected_cities)}.")
+            return self.travel()
+        self.player.location = self.player.location.connected_cities[choice - 1]
+        print(f"You have arrived in {self.player.location.name}.")
+
+    def trade(self):
+        os.system('clear' if os.name == 'posix' else 'cls')
+        self.print_game_status()
+
+    def process_input(self):
+        if self.menu_selection == self.menu[0]:
+            self.user_last_action = "Travel"
+            self.travel()
+        elif self.menu_selection == self.menu[1]:
+            self.user_last_action = "Trade"
+            print(self.user_last_action)
+        elif self.menu_selection == self.menu[2]:
+            self.user_last_action = "Map"
+            print(self.user_last_action)
+        elif self.menu_selection == self.menu[3]:
+            self.user_last_action = "Quit"
+            print(self.user_last_action)
         else:
             print("Invalid input.")
 
