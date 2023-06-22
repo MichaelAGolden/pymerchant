@@ -5,23 +5,27 @@ import os
 
 class Market:
 
+    market_types = {
+        "general_town": {
+            "name": "General Town",
+            "good_produced": ["wood", "stone", "iron", "grain", "wool", "leather"],
+            "buildings": ["Town Hall", "Inn", "Blacksmith", "Stable", "Market"],
+            "base_inventory": {"wood": 100, "stone": 100, "iron": 100, "grain": 100, "wool": 100, "leather": 100},
+            "base_price": {"wood": 5, "stone": 20, "iron": 40, "grain": 3, "wool": 7, "leather": 10},
+        }
+    }
+
     def __init__(self, name, connected_cities, market_type):
         self.name = name
         self.connected_cities = connected_cities
-        self.market_type = market_type
-        self.market_inventory = {}
+        self.market_type = self.market_types[market_type]
+        self.market_inventory = self.market_type["base_inventory"]
+        self.market_price = self.market_type["base_price"]
+        self.market_buildings = self.market_type["buildings"]
+        self.market_goods = self.market_type["good_produced"]
 
     def __repr__(self):
         return self.name
-
-    def set_market_inventory(self, market_inventory):
-        self.market_inventory = market_inventory
-
-    def get_market_inventory(self):
-        return self.market_inventory
-
-    def get_item_info(self, item):
-        return self.market_inventory
 
 
 class Player:
@@ -35,32 +39,6 @@ class Player:
 
     def __repr__(self):
         return str(f"[{self.name}, {self.gold}, {self.inventory}, {self.location.name}]")
-
-    def purchase(self, quantity, item, item_price, market):
-        if item not in market.market_inventory or market.market_inventory[item] < quantity or self.gold < quantity * item_price:
-            return False
-
-        # Create a copy of the player's inventory and market's inventory
-        player_inventory_copy = self.inventory.copy()
-        market_inventory_copy = market.market_inventory.copy()
-
-        # Update the copies with the proposed transfer
-        player_inventory_copy[item] = player_inventory_copy.get(
-            item, 0) + quantity
-        market_inventory_copy[item] -= quantity
-
-        # Check if the transfer is valid
-        if any(v < 0 for v in market_inventory_copy.values()):
-            return False
-
-        # Update the actual player and market inventories
-        self.inventory = player_inventory_copy
-        market.market_inventory = market_inventory_copy
-
-        # Deduct the gold from the player
-        self.gold -= quantity * item_price
-
-        return True
 
 
 class Game:
@@ -152,32 +130,16 @@ class Game:
             print("Invalid input.")
 
 
-trade_goods = [
-    {"name": "Iron Ore", "quantity": 50, "price": 300},
-    {"name": "Timber", "quantity": 100, "price": 200},
-    {"name": "Wool", "quantity": 80, "price": 100},
-    {"name": "Grain", "quantity": 120, "price": 50},
-    {"name": "Wine", "quantity": 60, "price": 400},
-    {"name": "Cloth", "quantity": 30, "price": 500},
-    {"name": "Salt", "quantity": 40, "price": 150},
-    {"name": "Fish", "quantity": 70, "price": 100},
-    {"name": "Cheese", "quantity": 90, "price": 250},
-    {"name": "Beer", "quantity": 60, "price": 350},
-]
-
-
-stormwind = Market("Stormwind", [], "Major City")
-iron_forge = Market("Iron Forge", [], "Major City")
-darnassus = Market("Darnassus", [], "Major City")
-exodar = Market("Exodar", [], "Major City")
+stormwind = Market("Stormwind", [], "general_town")
+iron_forge = Market("Iron Forge", [], "general_town")
+darnassus = Market("Darnassus", [], "general_town")
+exodar = Market("Exodar", [], "general_town")
 
 stormwind.connected_cities = [iron_forge, darnassus, exodar]
 iron_forge.connected_cities = [stormwind, exodar, darnassus]
 darnassus.connected_cities = [stormwind, iron_forge, exodar]
 exodar.connected_cities = [iron_forge, darnassus, stormwind]
 
-for city in [stormwind, iron_forge, darnassus, exodar]:
-    city.set_market_inventory(trade_goods)
 
 maventa = Player("Maventa", 1000, stormwind)
 
