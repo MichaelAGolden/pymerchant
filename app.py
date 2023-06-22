@@ -70,6 +70,7 @@ class Game:
             self.day_count += 1
 
     def print_game_status(self):
+        os.system('clear' if os.name == 'posix' else 'cls')
         print("Day:", self.day_count)
         print("Location:", self.player.location)
         print("Gold:", self.player.gold)
@@ -91,7 +92,6 @@ class Game:
         self.menu_selection = self.menu[choice - 1]
 
     def travel(self):
-        os.system('clear' if os.name == 'posix' else 'cls')
         self.print_game_status()
         print("Where would you like to go?")
         for i, city in enumerate(self.player.location.connected_cities):
@@ -110,7 +110,6 @@ class Game:
         print(f"You have arrived in {self.player.location.name}.")
 
     def trade(self):
-        os.system('clear' if os.name == 'posix' else 'cls')
         self.print_game_status()
 
     def process_input(self):
