@@ -1,4 +1,4 @@
-from typing import Dict, Type
+from typing import Type
 import time
 import os
 
@@ -15,6 +15,15 @@ class Market:
         }
     }
 
+    ITEM_LIST = {
+        "wood": {'name': "Wood", "weight_multiple": .5, "base_price": 5, "occurrence": "common", "base_quantity": 100},
+        "stone": {'name': "Stone", "weight_multiple": 1.0, "base_price": 20, "occurrence": "common", "base_quantity": 100},
+        "iron": {'name': "Iron", "weight_multiple": 0.8, "base_price": 40, "occurrence": "common", "base_quantity": 100},
+        "grain": {'name': "Grain", "weight_multiple": 0.1, "base_price": 3, "occurrence": "common", "base_quantity": 100},
+        "wool": {'name': "Wool", "weight_multiple": .6, "base_price": 7, "occurrence": "common", "base_quantity": 100},
+        "leather": {'name': "Leather", "weight_multiple": .7, "base_price": 10, "occurrence": "common", "base_quantity": 100}
+    }
+
     def __init__(self, name, connected_cities, market_type):
         self.name = name
         self.connected_cities = connected_cities
@@ -27,6 +36,12 @@ class Market:
     def __repr__(self):
         return self.name
 
+    def get_market_listings(self):
+        table = list()
+        for good, price in self.market_price.items():
+            table.append([good, self.market_inventory[good], price])
+        return table
+
 
 class Player:
     location: Market
@@ -35,10 +50,28 @@ class Player:
         self.name = name
         self.gold = gold
         self.location = location
-        self.inventory: Dict[str, int] = {}
+        self.max_capacity: float = 300
+        self.inventory = self.init_inventory()
 
     def __repr__(self):
         return str(f"[{self.name}, {self.gold}, {self.inventory}, {self.location.name}]")
+
+    def init_inventory(self):
+        items = self.location.ITEM_LIST
+        return {k: {'quantity': 0, 'avg_cost': 0.0, 'last_purchase_price': 0.0, 'weight_multiple': v['weight_multiple']} for k, v in items.items()}
+
+    def get_capacity(self):
+        self.max_capacity
+        self.load = sum([v['quantity'] * v['weight_multiple']
+                        for v in self.inventory.values()])
+        return self.max_capacity - self.load
+
+    def update_inventory(self, item_name, quantity, price):
+        self.inventory[item_name]['quantity'] += quantity
+        self.inventory[item_name]['avg_cost'] = (
+            self.inventory[item_name]['avg_cost'] + (quantity * price)) / ((self.inventory[item_name]['quantity']) + quantity)
+        self.inventory[item_name]['last_purchase_price'] = price
+        self.inventory[item_name]['weight_multiple'] = self.location.ITEM_LIST[item_name]['weight_multiple']
 
 
 class Game:
@@ -51,21 +84,20 @@ class Game:
         self.user_last_action = None
 
     def game_loop(self):
-        # Clear the screen
+
         os.system('clear' if os.name == 'posix' else 'cls')
         while True:
-            # Update the screen (print whatever information the player needs to know)
+
             os.system('clear' if os.name == 'posix' else 'cls')
             self.print_game_status()
 
             self.game_menu()
 
-            # Process user input (do whatever the game needs to do based on the input)
             self.process_input()
-            # Break loop if the user wants to quit (you may want to handle this differently)
+
             if self.menu_selection == self.menu[3]:
                 break
-            # Optional: wait a short period before the next iteration
+
             time.sleep(0.1)
             self.day_count += 1
 
@@ -91,9 +123,12 @@ class Game:
             return self.game_menu()
         self.menu_selection = self.menu[choice - 1]
 
-    def travel(self):
+    def travel(self, statement=None):
         self.print_game_status()
-        print("Where would you like to go?")
+        if statement:
+            print(statement)
+        else:
+            print("Where would you like to go?")
         for i, city in enumerate(self.player.location.connected_cities):
             print(f"{i+1}. {city}")
         choice = input(
@@ -104,13 +139,50 @@ class Game:
                 raise ValueError
         except ValueError:
             print(
-                f"Invalid choice. Please enter a number between 1 and {len(self.player.location.connected_cities)}.")
-            return self.travel()
+                error := f"Invalid choice. Please enter a number between 1 and {len(self.player.location.connected_cities)}.")
+            return self.travel(error)
         self.player.location = self.player.location.connected_cities[choice - 1]
         print(f"You have arrived in {self.player.location.name}.")
 
-    def trade(self):
+    def trade(self, statement=None):
         self.print_game_status()
+        print(self.player.inventory)
+        if statement:
+            print(statement)
+        item_list = self.player.location.get_market_listings()
+
+        for idx, item in enumerate(item_list):
+            print(f"{idx}) {item[0]}: {item[1]} at {item[2]} gold each.")
+        user_item_choice = int(
+            input("Enter the number cooresponding to the item: "))
+        user_item_qty = int(input("How many would you like to buy? "))
+        item_price = item_list[user_item_choice][2]
+        user_item_cost = user_item_qty * item_price
+        try:
+            if user_item_choice < 1 or user_item_choice > len(item_list):
+                raise ValueError
+        except ValueError:
+            print(
+                invalid_input := f"Invalid choice. Please enter a number between 1 and {len(item_list)}.")
+            return self.trade(invalid_input)
+        user_item_name = item_list[user_item_choice - 1][0]
+        try:
+            if user_item_cost > self.player.gold:
+                raise ValueError
+        except ValueError:
+            print(not_enough_gold := "You don't have enough gold for that.")
+            return self.trade(not_enough_gold)
+        try:
+            if user_item_qty > self.player.get_capacity():
+                raise ValueError
+        except ValueError:
+            print(lack_of_space :=
+                  "You don't have enough space in your inventory for that.")
+            return self.trade(lack_of_space)
+
+        self.player.gold -= user_item_cost
+        self.player.update_inventory(
+            user_item_name, user_item_qty, item_price)
 
     def process_input(self):
         if self.menu_selection == self.menu[0]:
@@ -118,7 +190,7 @@ class Game:
             self.travel()
         elif self.menu_selection == self.menu[1]:
             self.user_last_action = "Trade"
-            print(self.user_last_action)
+            self.trade()
         elif self.menu_selection == self.menu[2]:
             self.user_last_action = "Map"
             print(self.user_last_action)
@@ -139,9 +211,7 @@ iron_forge.connected_cities = [stormwind, exodar, darnassus]
 darnassus.connected_cities = [stormwind, iron_forge, exodar]
 exodar.connected_cities = [iron_forge, darnassus, stormwind]
 
-
 maventa = Player("Maventa", 1000, stormwind)
-
 
 game = Game(maventa)
 game.game_loop()
