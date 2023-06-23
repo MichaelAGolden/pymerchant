@@ -124,15 +124,20 @@ class Game:
         self.menu_selection = self.menu[choice - 1]
 
     def travel(self, statement=None):
+        # move to view controller
         self.print_game_status()
+
         if statement:
             print(statement)
         else:
             print("Where would you like to go?")
+
         for i, city in enumerate(self.player.location.connected_cities):
             print(f"{i+1}. {city}")
         choice = input(
             "Enter:")
+
+        # Choice validation move to seperate files
         try:
             choice = int(choice)
             if choice < 1 or choice > len(self.player.location.connected_cities):
@@ -145,19 +150,46 @@ class Game:
         print(f"You have arrived in {self.player.location.name}.")
 
     def trade(self, statement=None):
+        """_summary_
+
+        Args:
+            statement (_type_, optional): A message from try-except block for input and trade validation. Defaults to None.
+
+        Raises:
+            ValueError: _description_
+            ValueError: _description_
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        # Move to some view controller
         self.print_game_status()
-        print(self.player.inventory)
+
+        # return exception from try-block,
         if statement:
             print(statement)
         item_list = self.player.location.get_market_listings()
 
+        # Build table for displaying trade - refactor into a function
         for idx, item in enumerate(item_list):
             print(f"{idx}) {item[0]}: {item[1]} at {item[2]} gold each.")
+
+        # Get User Input - refactor into other functions?
         user_item_choice = int(
             input("Enter the number cooresponding to the item: "))
         user_item_qty = int(input("How many would you like to buy? "))
+
+        # Variable assignment
         item_price = item_list[user_item_choice][2]
         user_item_cost = user_item_qty * item_price
+        user_item_name = item_list[user_item_choice - 1][0]
+
+        # Validation Block - Refactor out of trade function
+        # breakout f-strings into variables instead of walrus operator
+
+        # Range of numbers validation
         try:
             if user_item_choice < 1 or user_item_choice > len(item_list):
                 raise ValueError
@@ -165,13 +197,16 @@ class Game:
             print(
                 invalid_input := f"Invalid choice. Please enter a number between 1 and {len(item_list)}.")
             return self.trade(invalid_input)
-        user_item_name = item_list[user_item_choice - 1][0]
+
+        # Affordability Validation
         try:
             if user_item_cost > self.player.gold:
                 raise ValueError
         except ValueError:
             print(not_enough_gold := "You don't have enough gold for that.")
             return self.trade(not_enough_gold)
+
+        # Inventory Capacity Validation
         try:
             if user_item_qty > self.player.get_capacity():
                 raise ValueError
@@ -180,10 +215,12 @@ class Game:
                   "You don't have enough space in your inventory for that.")
             return self.trade(lack_of_space)
 
+        # update gold/inventory
         self.player.gold -= user_item_cost
         self.player.update_inventory(
             user_item_name, user_item_qty, item_price)
 
+    # Main Menu selection
     def process_input(self):
         if self.menu_selection == self.menu[0]:
             self.user_last_action = "Travel"
@@ -201,17 +238,22 @@ class Game:
             print("Invalid input.")
 
 
+# Initialize market objects - move to class - randomized at start
 stormwind = Market("Stormwind", [], "general_town")
 iron_forge = Market("Iron Forge", [], "general_town")
 darnassus = Market("Darnassus", [], "general_town")
 exodar = Market("Exodar", [], "general_town")
 
+# Initialize market connected cities - move to a function in a class, need to make randomized at game start
 stormwind.connected_cities = [iron_forge, darnassus, exodar]
 iron_forge.connected_cities = [stormwind, exodar, darnassus]
 darnassus.connected_cities = [stormwind, iron_forge, exodar]
 exodar.connected_cities = [iron_forge, darnassus, stormwind]
 
+
+# Move to class - customizable at start of game
 maventa = Player("Maventa", 1000, stormwind)
 
+# move game loop to seperate file
 game = Game(maventa)
 game.game_loop()
