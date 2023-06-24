@@ -1,6 +1,76 @@
-from typing import Type
+from __future__ import annotations
+from typing import Type, Callable
 import time
 import os
+
+
+class Validators:
+    def __init__(self) -> None:
+        pass
+
+    def range_of_list(user_input: int, list_to_check: list, return_function: Callable):
+        """range_of_list Provides validation for user input when checking that input is within a range from 1 to the length of a list of ints.
+
+        Args:
+            user_input (int): int value from user input
+            list_to_check (list): list to check length of and compare to user_input
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
+        try:
+            if user_input < 1 or user_input > len(list_to_check):
+                raise ValueError
+        except ValueError:
+            print(
+                invalid_input := f"Invalid choice. Please enter a number between 1 and {len(list_to_check)}.")
+            return return_function(invalid_input)
+
+    def check_inventory_capacity(user_input_qty: int, player: Type[Player], return_function: Callable):
+        """check_inventory_capacity Checks that the player has enough space in their inventory for the quantity of items they are trying to add.
+
+        Args:
+            user_input_qty (int): _description_
+            player (Player): _description_
+            return_function (Callable): _description_
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
+        try:
+            if user_input_qty > player.get_capacity():
+                raise ValueError
+        except ValueError:
+            print(lack_of_space :=
+                  "You don't have enough space in your inventory for that.")
+            return return_function(lack_of_space)
+
+    def affordability_check(item_cost: int, player: Type[Player], return_function: Callable):
+        """affordability_check Checks that the player has enough gold to afford the item they are trying to buy.
+
+        Args:
+            item_cost (int): _description_
+            player (Player): _description_
+            return_function (Callable): _description_
+
+        Raises:
+            ValueError: _description_
+
+        Returns:
+            _type_: _description_
+        """
+        try:
+            if item_cost > player.gold:
+                raise ValueError
+        except ValueError:
+            print(not_enough_gold := "You don't have enough gold for that.")
+            return return_function(not_enough_gold)
 
 
 class Market:
@@ -66,12 +136,18 @@ class Player:
                         for v in self.inventory.values()])
         return self.max_capacity - self.load
 
-    def update_inventory(self, item_name, quantity, price):
+    def update_inventory(self, item_name, quantity, price, item_cost):
+        self.gold = self.gold - item_cost
         self.inventory[item_name]['quantity'] += quantity
         self.inventory[item_name]['avg_cost'] = (
-            self.inventory[item_name]['avg_cost'] + (quantity * price)) / ((self.inventory[item_name]['quantity']) + quantity)
+            self.inventory[item_name]['avg_cost'] + item_cost) / ((self.inventory[item_name]['quantity']) + quantity)
         self.inventory[item_name]['last_purchase_price'] = price
         self.inventory[item_name]['weight_multiple'] = self.location.ITEM_LIST[item_name]['weight_multiple']
+
+    def show_inventory(self):
+        short_inventory = [f"{k}: {v['quantity']}"
+                           for k, v in self.inventory.items()]
+        return '\n' + '\n'.join(short_inventory)
 
 
 class Game:
@@ -79,7 +155,7 @@ class Game:
     def __init__(self, player: Type[Player]) -> None:
         self.day_count = 1
         self.player = player
-        self.menu = ["Travel", "Market", "Inventory", "Quit"]
+        self.menu = ["Travel", "Trade", "Inventory", "Quit"]
         self.menu_selection = None
         self.user_last_action = None
 
@@ -98,87 +174,69 @@ class Game:
             if self.menu_selection == self.menu[3]:
                 break
 
-            time.sleep(0.1)
+            time.sleep(0.3)
             self.day_count += 1
 
     def print_game_status(self):
         os.system('clear' if os.name == 'posix' else 'cls')
-        print("Day:", self.day_count)
-        print("Location:", self.player.location)
-        print("Gold:", self.player.gold)
+        print(f"Day: {self.day_count} Location: {self.player.location}")
         print("Last Action:", self.user_last_action)
+        print("Inventory",
+              self.player.show_inventory())
+        print("Gold:", self.player.gold)
 
-    def game_menu(self):
+    def game_menu(self, statement=None):
+        if statement:
+            print(statement)
         print("What would you like to do?")
         for i, option in enumerate(self.menu):
             print(f"{i+1}. {option}")
-        choice = input("Enter the number of your choice: ")
-        try:
-            choice = int(choice)
-            if choice < 1 or choice > len(self.menu):
-                raise ValueError
-        except ValueError:
-            print(
-                f"Invalid choice. Please enter a number between 1 and {len(self.menu)}.")
-            return self.game_menu()
+        choice = int(input("Enter the number of your choice: "))
+        Validators.range_of_list(choice, self.game_menu)
         self.menu_selection = self.menu[choice - 1]
 
     def travel(self, statement=None):
-        # move to view controller
-        self.print_game_status()
+        """travel _summary_
 
+        Args:
+            statement (_type_, optional): _description_. Defaults to None.
+        """
+        self.print_game_status()
         if statement:
             print(statement)
         else:
-            print("Where would you like to go?")
+            print("Pick your destination")
 
         for i, city in enumerate(self.player.location.connected_cities):
             print(f"{i+1}. {city}")
-        choice = input(
-            "Enter:")
+        choice = int(input(
+            "Enter the number cooresponding with the location: "))
+        Validators.range_of_list(
+            choice, self.player.location.connected_cities, self.travel)
 
-        # Choice validation move to seperate files
-        try:
-            choice = int(choice)
-            if choice < 1 or choice > len(self.player.location.connected_cities):
-                raise ValueError
-        except ValueError:
-            print(
-                error := f"Invalid choice. Please enter a number between 1 and {len(self.player.location.connected_cities)}.")
-            return self.travel(error)
         self.player.location = self.player.location.connected_cities[choice - 1]
         print(f"You have arrived in {self.player.location.name}.")
 
     def trade(self, statement=None):
-        """_summary_
+        """trade _summary_
 
         Args:
-            statement (_type_, optional): A message from try-except block for input and trade validation. Defaults to None.
-
-        Raises:
-            ValueError: _description_
-            ValueError: _description_
-            ValueError: _description_
-
-        Returns:
-            _type_: _description_
+            statement (_type_, optional): _description_. Defaults to None.
         """
-
-        # Move to some view controller
         self.print_game_status()
-
-        # return exception from try-block,
         if statement:
             print(statement)
         item_list = self.player.location.get_market_listings()
 
         # Build table for displaying trade - refactor into a function
         for idx, item in enumerate(item_list):
-            print(f"{idx}) {item[0]}: {item[1]} at {item[2]} gold each.")
+            print(f"{idx+1}) {item[0]}: {item[1]} at {item[2]} gold each.")
 
         # Get User Input - refactor into other functions?
         user_item_choice = int(
             input("Enter the number cooresponding to the item: "))
+        Validators.range_of_list(user_item_choice, item_list, self.trade)
+
         user_item_qty = int(input("How many would you like to buy? "))
 
         # Variable assignment
@@ -186,39 +244,12 @@ class Game:
         user_item_cost = user_item_qty * item_price
         user_item_name = item_list[user_item_choice - 1][0]
 
-        # Validation Block - Refactor out of trade function
-        # breakout f-strings into variables instead of walrus operator
+        Validators.affordability_check(user_item_cost, self.player, self.trade)
+        Validators.check_inventory_capacity(
+            user_item_qty, self.player, self.trade)
 
-        # Range of numbers validation
-        try:
-            if user_item_choice < 1 or user_item_choice > len(item_list):
-                raise ValueError
-        except ValueError:
-            print(
-                invalid_input := f"Invalid choice. Please enter a number between 1 and {len(item_list)}.")
-            return self.trade(invalid_input)
-
-        # Affordability Validation
-        try:
-            if user_item_cost > self.player.gold:
-                raise ValueError
-        except ValueError:
-            print(not_enough_gold := "You don't have enough gold for that.")
-            return self.trade(not_enough_gold)
-
-        # Inventory Capacity Validation
-        try:
-            if user_item_qty > self.player.get_capacity():
-                raise ValueError
-        except ValueError:
-            print(lack_of_space :=
-                  "You don't have enough space in your inventory for that.")
-            return self.trade(lack_of_space)
-
-        # update gold/inventory
-        self.player.gold -= user_item_cost
         self.player.update_inventory(
-            user_item_name, user_item_qty, item_price)
+            user_item_name, user_item_qty, item_price, user_item_cost)
 
     # Main Menu selection
     def process_input(self):
