@@ -1,153 +1,10 @@
 from __future__ import annotations
-from typing import Type, Callable
+from typing import Type
 import time
 import os
-
-
-class Validators:
-    def __init__(self) -> None:
-        pass
-
-    def range_of_list(user_input: int, list_to_check: list, return_function: Callable):
-        """range_of_list Provides validation for user input when checking that input is within a range from 1 to the length of a list of ints.
-
-        Args:
-            user_input (int): int value from user input
-            list_to_check (list): list to check length of and compare to user_input
-
-        Raises:
-            ValueError: _description_
-
-        Returns:
-            _type_: _description_
-        """
-        try:
-            if user_input < 1 or user_input > len(list_to_check):
-                raise ValueError
-        except ValueError:
-            print(
-                invalid_input := f"Invalid choice. Please enter a number between 1 and {len(list_to_check)}.")
-            return return_function(invalid_input)
-
-    def check_inventory_capacity(user_input_qty: int, player: Type[Player], return_function: Callable):
-        """check_inventory_capacity Checks that the player has enough space in their inventory for the quantity of items they are trying to add.
-
-        Args:
-            user_input_qty (int): _description_
-            player (Player): _description_
-            return_function (Callable): _description_
-
-        Raises:
-            ValueError: _description_
-
-        Returns:
-            _type_: _description_
-        """
-        try:
-            if user_input_qty > player.get_capacity():
-                raise ValueError
-        except ValueError:
-            print(lack_of_space :=
-                  "You don't have enough space in your inventory for that.")
-            return return_function(lack_of_space)
-
-    def affordability_check(item_cost: int, player: Type[Player], return_function: Callable):
-        """affordability_check Checks that the player has enough gold to afford the item they are trying to buy.
-
-        Args:
-            item_cost (int): _description_
-            player (Player): _description_
-            return_function (Callable): _description_
-
-        Raises:
-            ValueError: _description_
-
-        Returns:
-            _type_: _description_
-        """
-        try:
-            if item_cost > player.gold:
-                raise ValueError
-        except ValueError:
-            print(not_enough_gold := "You don't have enough gold for that.")
-            return return_function(not_enough_gold)
-
-
-class Market:
-
-    market_types = {
-        "general_town": {
-            "name": "General Town",
-            "good_produced": ["wood", "stone", "iron", "grain", "wool", "leather"],
-            "buildings": ["Town Hall", "Inn", "Blacksmith", "Stable", "Market"],
-            "base_inventory": {"wood": 100, "stone": 100, "iron": 100, "grain": 100, "wool": 100, "leather": 100},
-            "base_price": {"wood": 5, "stone": 20, "iron": 40, "grain": 3, "wool": 7, "leather": 10},
-        }
-    }
-
-    ITEM_LIST = {
-        "wood": {'name': "Wood", "weight_multiple": .5, "base_price": 5, "occurrence": "common", "base_quantity": 100},
-        "stone": {'name': "Stone", "weight_multiple": 1.0, "base_price": 20, "occurrence": "common", "base_quantity": 100},
-        "iron": {'name': "Iron", "weight_multiple": 0.8, "base_price": 40, "occurrence": "common", "base_quantity": 100},
-        "grain": {'name': "Grain", "weight_multiple": 0.1, "base_price": 3, "occurrence": "common", "base_quantity": 100},
-        "wool": {'name': "Wool", "weight_multiple": .6, "base_price": 7, "occurrence": "common", "base_quantity": 100},
-        "leather": {'name': "Leather", "weight_multiple": .7, "base_price": 10, "occurrence": "common", "base_quantity": 100}
-    }
-
-    def __init__(self, name, connected_cities, market_type):
-        self.name = name
-        self.connected_cities = connected_cities
-        self.market_type = self.market_types[market_type]
-        self.market_inventory = self.market_type["base_inventory"]
-        self.market_price = self.market_type["base_price"]
-        self.market_buildings = self.market_type["buildings"]
-        self.market_goods = self.market_type["good_produced"]
-
-    def __repr__(self):
-        return self.name
-
-    def get_market_listings(self):
-        table = list()
-        for good, price in self.market_price.items():
-            table.append([good, self.market_inventory[good], price])
-        return table
-
-
-class Player:
-    location: Market
-
-    def __init__(self, name, gold, location) -> None:
-        self.name = name
-        self.gold = gold
-        self.location = location
-        self.max_capacity: float = 300
-        self.inventory = self.init_inventory()
-
-    def __repr__(self):
-        return str(f"[{self.name}, {self.gold}, {self.inventory}, {self.location.name}]")
-
-    def init_inventory(self):
-        items = self.location.ITEM_LIST
-        return {k: {'quantity': 0, 'avg_cost': 0.0, 'last_purchase_price': 0.0, 'weight_multiple': v['weight_multiple']} for k, v in items.items()}
-
-    def get_capacity(self):
-        self.max_capacity
-        self.load = sum([v['quantity'] * v['weight_multiple']
-                        for v in self.inventory.values()])
-        return self.max_capacity - self.load
-
-    def update_inventory(self, item_name, quantity, price, item_cost):
-        self.gold = self.gold - item_cost
-        self.inventory[item_name]['quantity'] += quantity
-        self.inventory[item_name]['avg_cost'] = (
-            self.inventory[item_name]['avg_cost'] + item_cost) / ((self.inventory[item_name]['quantity']) + quantity)
-        self.inventory[item_name]['last_purchase_price'] = price
-        self.inventory[item_name]['weight_multiple'] = self.location.ITEM_LIST[item_name]['weight_multiple']
-
-    def show_inventory(self):
-        short_inventory = [f"{k}: {v['quantity']}"
-                           for k, v in self.inventory.items()]
-        return '\n' + '\n'.join(short_inventory)
+from validators import Validators
+from player import Player
+from market import Market
 
 
 class Game:
@@ -168,8 +25,6 @@ class Game:
             self.print_game_status()
 
             self.game_menu()
-
-            self.process_input()
 
             if self.menu_selection == self.menu[3]:
                 break
@@ -192,8 +47,23 @@ class Game:
         for i, option in enumerate(self.menu):
             print(f"{i+1}. {option}")
         choice = int(input("Enter the number of your choice: "))
-        Validators.range_of_list(choice, self.game_menu)
+        Validators.range_of_list(choice, self.menu, self.game_menu)
         self.menu_selection = self.menu[choice - 1]
+
+        if self.menu_selection == self.menu[0]:
+            self.user_last_action = "Travel"
+            self.travel()
+        elif self.menu_selection == self.menu[1]:
+            self.user_last_action = "Trade"
+            self.trade()
+        elif self.menu_selection == self.menu[2]:
+            self.user_last_action = "Map"
+            print(self.user_last_action)
+        elif self.menu_selection == self.menu[3]:
+            self.user_last_action = "Quit"
+            print(self.user_last_action)
+        else:
+            print("Invalid input.")
 
     def travel(self, statement=None):
         """travel _summary_
@@ -217,7 +87,7 @@ class Game:
         self.player.location = self.player.location.connected_cities[choice - 1]
         print(f"You have arrived in {self.player.location.name}.")
 
-    def trade(self, statement=None):
+    def trade(self, is_selling=False, statement=None):
         """trade _summary_
 
         Args:
@@ -251,28 +121,11 @@ class Game:
         self.player.update_inventory(
             user_item_name, user_item_qty, item_price, user_item_cost)
 
-    # Main Menu selection
-    def process_input(self):
-        if self.menu_selection == self.menu[0]:
-            self.user_last_action = "Travel"
-            self.travel()
-        elif self.menu_selection == self.menu[1]:
-            self.user_last_action = "Trade"
-            self.trade()
-        elif self.menu_selection == self.menu[2]:
-            self.user_last_action = "Map"
-            print(self.user_last_action)
-        elif self.menu_selection == self.menu[3]:
-            self.user_last_action = "Quit"
-            print(self.user_last_action)
-        else:
-            print("Invalid input.")
-
 
 # Initialize market objects - move to class - randomized at start
 stormwind = Market("Stormwind", [], "general_town")
-iron_forge = Market("Iron Forge", [], "general_town")
-darnassus = Market("Darnassus", [], "general_town")
+iron_forge = Market("Iron Forge", [], "mining_town")
+darnassus = Market("Darnassus", [], "farming_town")
 exodar = Market("Exodar", [], "general_town")
 
 # Initialize market connected cities - move to a function in a class, need to make randomized at game start
