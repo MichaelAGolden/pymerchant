@@ -192,7 +192,7 @@ class Game:
         for i, option in enumerate(self.menu):
             print(f"{i+1}. {option}")
         choice = int(input("Enter the number of your choice: "))
-        Validators.range_of_list(choice, self.game_menu)
+        Validators.range_of_list(choice, self.menu, self.game_menu)
         self.menu_selection = self.menu[choice - 1]
 
     def travel(self, statement=None):
