@@ -2,7 +2,6 @@ from typing import Callable, Type
 from player import Player
 
 
-
 class Validators:
     def __init__(self) -> None:
         pass

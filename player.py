@@ -1,10 +1,8 @@
-
 import market
 
 
 class Player:
     location: market.Market
-
 
     def __init__(self, name, gold, location) -> None:
         self.name = name
@@ -35,11 +33,9 @@ class Player:
             self.inventory[item_name]['avg_cost'] + item_cost) / ((self.inventory[item_name]['quantity']) + quantity)
         self.inventory[item_name]['last_purchase_price'] = price
 
-
     def show_inventory(self):
         table_heading = "-----------------Player Inventory--------------------"
         table_labels = "---Good---|---Qty---|--avgCost--|---Purchase Price---"
         short_inventory = [f"--{k}--|----{v['quantity']}----|----{v['avg_cost']}----|----v['last_purchase_price']----"
                            for k, v in self.inventory.items() if v['quantity'] > 0]
         return table_heading + '\n' + table_labels + '\n' + '\n'.join(short_inventory)
-
