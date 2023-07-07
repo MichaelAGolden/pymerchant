@@ -1,5 +1,6 @@
-from __future__ import annotations
-from typing import Type, Callable
+from typing import Callable, Type
+from player import Player
+
 
 
 class Validators:
