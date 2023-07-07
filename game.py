@@ -20,7 +20,7 @@ class Game:
         os.system('clear' if os.name == 'posix' else 'cls')
         while True:
 
-            # os.system('clear' if os.name == 'posix' else 'cls')
+            os.system('clear' if os.name == 'posix' else 'cls')
             self.print_game_status()
 
             self.game_menu()
@@ -30,12 +30,11 @@ class Game:
             if self.menu_selection == self.menu[3]:
                 break
 
-            time.sleep(0.3)
+            time.sleep(1.5)
             self.day_count += 1
 
     def print_game_status(self):
-        # os.system('clear' if os.name == 'posix' else 'cls')
-        print("\n\n\n")
+        os.system('clear' if os.name == 'posix' else 'cls')
         print(f"Day: {self.day_count} Location: {self.player.location}")
         print("Last Action:", self.user_last_action)
         print(self.player.show_inventory())
