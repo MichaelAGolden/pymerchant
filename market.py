@@ -27,8 +27,7 @@ class Market:
             'beer': {'inputs': ['grain'], 'base_price': 60}},
         'fishing': {
             'fish': {'inputs': ['salt'], 'base_price': 60},
-            'salt': {'inputs': [None], 'base_price': 50},
-            'oil': {'inputs': ['fish'], 'base_price': 50}},
+            'salt': {'inputs': [None], 'base_price': 50}},
         'ranching': {
             'meat': {'inputs': ['salt'], 'base_price': 120},
             'cheese': {'inputs': ['salt'], 'base_price': 200},
@@ -36,7 +35,6 @@ class Market:
             'pelts': {'inputs': [None], 'base_price': 150},
             'wool': {'inputs': [None], 'base_price': 90}},
         'mining': {
-            'stone': {'inputs': [None], 'base_price': 50},
             'iron': {'inputs': [None], 'base_price': 100},
             'gems': {'inputs': [None], 'base_price': 400}},
         'manufactured_items': {
@@ -55,6 +53,32 @@ class Market:
         'rostock': ['lubek', 'berlin']
 
     }
+
+    REVISED_CITIES = {
+        'antwerp': [],
+        'bruges': [],
+        'bergen': [],
+        'bremen': [],
+        'cologne': [],
+        'danzig': [],
+        'hamburg': [],
+        'kampen': [],
+        'london': [],
+        'lubeck': [],
+        'malmo': [],
+        'novorod': [],
+        'riga': [],
+        'rostock': [],
+        'stockholm': [],
+        'stralsund': [],
+        'tallinn': [],
+        'visby': [],
+    }
+    # listed in miles
+    lubek_london = 804.70
+    hamburg_london = 416.70
+    london_bruges = 133.90
+    bruges_antwerp = 57.60
 
     FLAT_MARKET_GOODS = {good: properties
                          for category in MARKET_GOODS.values()
