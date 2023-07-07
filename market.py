@@ -1,9 +1,7 @@
-
 import random
 
 
 class Market:
-
 
     # 1st level of market dict is the market type
     # 2nd level of market dict is the market good
@@ -71,10 +69,8 @@ class Market:
         self.market_inventory = {}
         self.build_market()
 
-
     def __repr__(self):
         return self.name
-
 
     def __iter__(self):
         self.index = 0
@@ -115,10 +111,3 @@ class Market:
 
     def get_connected_cities(self):
         return self.connected_cities
-
-    def get_market_listings(self):
-        table = list()
-        for good, price in self.market_price.items():
-            table.append([good, self.market_inventory[good], price])
-        return table
-
