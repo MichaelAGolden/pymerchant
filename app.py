@@ -22,6 +22,7 @@ rostock.connected_cities = [lubek, berlin]
 
 merchant = Player("merchant", 1000, lubek)
 
+
 # move game loop to seperate file
 app = game.Game(merchant)
 # print("MARKET INVENTORY")
