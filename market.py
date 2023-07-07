@@ -106,7 +106,7 @@ class Market:
     def get_market_listings(self):
         table = []
         for good, price in self.market_inventory.items():
-            table.append([good, self.market_inventory[good], price])
+            table.append([good, price])
         return table
 
     def get_connected_cities(self):

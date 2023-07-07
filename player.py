@@ -36,6 +36,6 @@ class Player:
     def show_inventory(self):
         table_heading = "-----------------Player Inventory--------------------"
         table_labels = "---Good---|---Qty---|--avgCost--|---Purchase Price---"
-        short_inventory = [f"--{k}--|----{v['quantity']}----|----{v['avg_cost']}----|----v['last_purchase_price']----"
+        short_inventory = [f"--{k}--|----{v['quantity']}----|----{v['avg_cost']}----|----{v['last_purchase_price']}----"
                            for k, v in self.inventory.items() if v['quantity'] > 0]
         return table_heading + '\n' + table_labels + '\n' + '\n'.join(short_inventory)

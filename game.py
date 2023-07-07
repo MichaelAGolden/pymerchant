@@ -88,7 +88,7 @@ class Game:
         # Build table for displaying trade - refactor into a function
         for idx, item in enumerate(item_list):
             print(
-                f"{idx+1}) --{item[0]}--|-----{item[0][0]}-----|------{item[0][1]}-------")
+                f"{idx+1}) --{item[0]}--|-----{item[1]['quantity']}-----|------{item[1]['price']}-------")
 
         # Get User Input - refactor into other functions?
         user_item_choice = int(
@@ -98,7 +98,7 @@ class Game:
         user_item_qty = int(input("How many would you like to buy? "))
 
         # Variable assignment
-        item_price = item_list[user_item_choice][2]
+        item_price = item_list[user_item_choice - 1][1]['price']
         user_item_cost = user_item_qty * item_price
         user_item_name = item_list[user_item_choice - 1][0]
 

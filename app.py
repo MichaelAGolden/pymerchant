@@ -25,6 +25,7 @@ merchant = Player("merchant", 1000, lubek)
 
 # move game loop to seperate file
 app = game.Game(merchant)
+# print(merchant.location.get_market_listings())
 # print("MARKET INVENTORY")
 # print(lubek.market_inventory)
 # print("\n\n\nMarket_Inventory.items()")
