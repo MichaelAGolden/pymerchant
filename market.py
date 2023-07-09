@@ -9,40 +9,49 @@ class Market:
     MARKET_GOODS = {
         'textiles': {
             'linen': {'inputs': ['hemp', 'flax'], 'base_price': 10},
-            'clothing': {'inputs': ['linen', 'wool', 'pelts', 'dyes'], 'base_price': 120}},
+            'broadcloth': {'inputs': ['wool', 'dyes'], 'base_price': 100},
+            'clothing': {'inputs': ['linen', 'wool', 'pelts', 'dyes'], 'base_price': 120}
+        },
         'forestry': {
             'wood': {'inputs': [None], 'base_price': 30},
             'charcoal': {'inputs': ['wood'], 'base_price': 50},
-            'pitch': {'inputs': ['wood'], 'base_price': 80}},
+            'pitch': {'inputs': ['wood'], 'base_price': 80}
+        },
         'farming': {
             'grain': {'inputs': [None], 'base_price': 30},
             'honey': {'inputs': [None], 'base_price': 50},
             'hemp': {'inputs': [None], 'base_price': 80},
             'flax': {'inputs': [None], 'base_price': 50},
             'spices': {'inputs': [None], 'base_price': 200},
-            'dyes': {'inputs': [None], 'base_price': 120}},
+            'dyes': {'inputs': [None], 'base_price': 120}
+        },
         'alcohol': {
             'wine': {'inputs': [None], 'base_price': 150},
             'mead': {'inputs': ['honey'], 'base_price': 80},
-            'beer': {'inputs': ['grain'], 'base_price': 60}},
+            'beer': {'inputs': ['grain'], 'base_price': 60}
+        },
         'fishing': {
             'fish': {'inputs': ['salt'], 'base_price': 60},
-            'salt': {'inputs': [None], 'base_price': 50}},
+            'salt': {'inputs': [None], 'base_price': 50},
+            'oil': {'inputs': ['fish'], 'base_price': 100}
+        },
         'ranching': {
             'meat': {'inputs': ['salt'], 'base_price': 120},
-            'cheese': {'inputs': ['salt'], 'base_price': 200},
-            'fish': {'inputs': ['salt'], 'base_price': 120},
+            'cheese': {'inputs': ['salt'], 'base_price': 200},,
             'pelts': {'inputs': [None], 'base_price': 150},
-            'wool': {'inputs': [None], 'base_price': 90}},
+            'wool': {'inputs': [None], 'base_price': 90}
+        },
         'mining': {
             'iron': {'inputs': [None], 'base_price': 100},
-            'gems': {'inputs': [None], 'base_price': 400}},
+            'gems': {'inputs': [None], 'base_price': 400}
+        },
         'manufactured_items': {
             'tools': {'inputs': ['wood', 'iron', 'stone'], 'base_price': 150},
             'weapons': {'inputs': ['wood', 'iron', 'stone', 'tools'], 'base_price': 200},
             'armor': {'inputs': ['wood', 'iron', 'stone', 'tools', 'clothing'], 'base_price': 300},
             'jewelry': {'inputs': ['iron', 'gems', 'tools', 'stone'], 'base_price': 1000},
-            'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200}}
+            'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200}
+        }
     }
 
     # List of CITIES and their distances from each other, in nautical miles by sea, charted by hand in google earth
@@ -379,6 +388,81 @@ class Market:
         'south_baltic': ['malmo', 'lubeck', 'rostock', 'stralsund', 'danzig'],
         'north_sea': ['bergen', 'bremen', 'hamburg', 'kampen'],
         'english_channel': ['antwerp', 'bruges', 'cologne', 'london'],
+    }
+
+    CITIES_PRODUCTIONS = {
+        'antwerp': {
+            'textiles': ['linen', 'clothing'],
+            'farming': ['hemp', 'flax', 'dyes', 'honey'],
+            'ranching': ['wool', 'pelts', 'cheese']
+        },
+        'bruges': {
+            'textiles': ['linen', 'broadcloth', 'clothing'],
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'spices', 'honey'],
+            'ranching': ['wool', 'pelts', 'cheese']
+        },
+        'bergen': {
+            'fishing': ['fish', 'oil'],
+            'forestry': ['wood', 'charcoal', 'pitch'],
+        },
+        'bremen': {
+            'alcohol': ['mead', 'beer', 'wine'],
+            'ranching': ['pelts', 'wool', 'cheese'],
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
+        },
+        'cologne': {
+            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
+            'ranching': ['meat', 'cheese','pelts', 'wool'],
+            'mining': ['iron', 'gems'],
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey', 'spices'],
+            'alcohol': ['wine', 'beer', 'mead']
+        },
+        'danzig': {
+            'farming': ['grain', 'hemp', 'flax', 'honey'],
+            'mining': ['iron', 'gems'],
+        },
+        'hamburg': {
+            'fishing': ['fish', 'oil', 'salt'],
+            'manufactured_items': ['tools', 'weapons', 'armor']
+        },
+        'kampen': {
+            'manufactured_items': ['jewelry', 'furniture'],
+            'fishing': ['fish, oil, salt'],
+        },
+        'london': {
+            'textiles': ['linen', 'broadcloth', 'clothing'],
+            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
+        },
+        'lubeck': {
+            'fishing': ['salt', 'fish', 'oil'],
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
+            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
+        },
+        'malmo': {
+            'forestry': ['wood', 'charcoal', 'pitch'],
+            'fishing': ['fish', 'oil', 'salt'],
+            'manufactured_items': ['tools' 'weapons', 'armor'],
+            },
+        'novorod': {
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
+            'ranching': ['meat', 'cheese', 'pelts', 'wool'],
+            'mining': ['iron', 'gems'],
+            },
+        'riga': {
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
+            'mining': ['iron', 'gems'],
+            'forestry': ['wood', 'charcoal', 'pitch'],
+            },
+        'rostock': {
+            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
+            'ranching': ['meat', 'cheese', 'pelts', 'wool'],
+            'fishing': ['fish', 'salt'],
+            },
+        'stockholm': {
+            'mining' : ['iron', 'gems'],
+            'forestry': ['wood', 'charcoal', 'pitch'],
+            }
     }
 
     FLAT_MARKET_GOODS = {good: properties
