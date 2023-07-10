@@ -10,8 +10,15 @@ class Transaction:
     def __repr__(self):
         pass
 
-    def log_transaction(self, player, market, item_name, item_price, item_qty):
-        pass
+    def set_inventory(self, seller, buyer, item_name, item_qty):
+        # handles inventory transactio between buyer and seller, inventory updates in same function
+        prior_seller_item_qty = getattr(seller, item_name)
+        updated_seller_item_qty = prior_seller_item_qty - item_qty
+        setattr(seller, item_name, updated_seller_item_qty)
+
+        prior_buyer_item_qty = getattr(buyer, item_name)
+        updated_buyer_item_qty = prior_buyer_item_qty + item_qty
+        setattr(buyer, item_name, updated_buyer_item_qty)
 
     def set_gold(self, seller, buyer, total_trade):
         # sets buyer and seller new gold values in same function to ensure completion
@@ -23,17 +30,20 @@ class Transaction:
         updated_buyer_gold = prior_buyer_gold - total_trade
         setattr(buyer, 'gold', updated_buyer_gold)
 
+    def log_transaction(self, player, market, item_name, item_price, item_qty):
+        pass
 
-def trade(self, player, market, trade_type, item_name, item_price, item_qty):
-    total_trade = item_price * item_qty
-    if trade_type == 'buy':
-        v.Validators.affordability_check(total_trade, player, self.trade)
-        v.Validators.check_inventory_capacity(item_qty, player, self.trade)
-        self.set_gold(player, market, total_trade)
-        self.set_inventory(player, market, item_name, item_qty)
-        self.log_transaction(player, market, item_name,
-                             item_qty, item_price, total_trade)
-    elif trade_type == 'sell':
-        self.set_gold(market, player)
-        self.set_inventory(market, player)
-        self.log_transaction(market, player, item_name, item_qty, item_price)
+    def trade(self, player, market, trade_type, item_name, item_price, item_qty):
+        total_trade = item_price * item_qty
+        if trade_type == 'buy':
+            v.Validators.affordability_check(total_trade, player, self.trade)
+            v.Validators.check_inventory_capacity(item_qty, player, self.trade)
+            self.set_gold(player, market, total_trade)
+            self.set_inventory(player, market, item_name, item_qty)
+            self.log_transaction(player, market, item_name,
+                                 item_qty, item_price, total_trade)
+        elif trade_type == 'sell':
+            self.set_gold(market, player)
+            self.set_inventory(market, player)
+            self.log_transaction(market, player, item_name,
+                                 item_qty, item_price)
