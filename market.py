@@ -37,7 +37,7 @@ class Market:
         },
         'ranching': {
             'meat': {'inputs': ['salt'], 'base_price': 120},
-            'cheese': {'inputs': ['salt'], 'base_price': 200},,
+            'cheese': {'inputs': ['salt'], 'base_price': 200},
             'pelts': {'inputs': [None], 'base_price': 150},
             'wool': {'inputs': [None], 'base_price': 90}
         },
@@ -412,7 +412,7 @@ class Market:
         },
         'cologne': {
             'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
-            'ranching': ['meat', 'cheese','pelts', 'wool'],
+            'ranching': ['meat', 'cheese', 'pelts', 'wool'],
             'mining': ['iron', 'gems'],
             'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey', 'spices'],
             'alcohol': ['wine', 'beer', 'mead']
@@ -443,26 +443,26 @@ class Market:
             'forestry': ['wood', 'charcoal', 'pitch'],
             'fishing': ['fish', 'oil', 'salt'],
             'manufactured_items': ['tools' 'weapons', 'armor'],
-            },
+        },
         'novorod': {
             'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
             'ranching': ['meat', 'cheese', 'pelts', 'wool'],
             'mining': ['iron', 'gems'],
-            },
+        },
         'riga': {
             'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
             'mining': ['iron', 'gems'],
             'forestry': ['wood', 'charcoal', 'pitch'],
-            },
+        },
         'rostock': {
             'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
             'ranching': ['meat', 'cheese', 'pelts', 'wool'],
             'fishing': ['fish', 'salt'],
-            },
+        },
         'stockholm': {
-            'mining' : ['iron', 'gems'],
+            'mining': ['iron', 'gems'],
             'forestry': ['wood', 'charcoal', 'pitch'],
-            }
+        }
     }
 
     FLAT_MARKET_GOODS = {good: properties
@@ -480,17 +480,6 @@ class Market:
 
     def __repr__(self):
         return self.name
-
-    def __iter__(self):
-        self.index = 0
-        return self
-
-    def __next__(self):
-        if self.index >= len(self.values):
-            raise StopIteration
-        value = self.values[self.index]
-        self.index += 1
-        return value
 
     def build_market(self, item_list=BASE_PRICES):
 
