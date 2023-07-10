@@ -3,22 +3,41 @@ import validators as v
 
 
 def set_inventory(seller, buyer, item_name, item_qty):
-    # handles inventory transactio between buyer and seller, inventory updates in same function
+    """
+    set_inventory updates buyer and seller inventories at same in transaction
+
+    Args:
+        seller (Entity): Entity that is the seller in the context of the transaction
+        buyer (Entity): Entity that is the buyer in the context of the transaction
+        item_name (str): Name of item that is being traded
+        item_qty (int): Quantity of item that is being traded
+    """
+    # updates seller item quantity
     prior_seller_item_qty = getattr(seller, item_name)
     updated_seller_item_qty = prior_seller_item_qty - item_qty
     setattr(seller, item_name, updated_seller_item_qty)
 
+    # updates buyer item quantity
     prior_buyer_item_qty = getattr(buyer, item_name)
     updated_buyer_item_qty = prior_buyer_item_qty + item_qty
     setattr(buyer, item_name, updated_buyer_item_qty)
 
 
 def set_gold(seller, buyer, total_trade):
-    # sets buyer and seller new gold values in same function to ensure completion
+    """
+    set_gold updates buyer and seller gold attributes at same time in transaction
+
+    Args:
+        seller (Entity): Entity that is the seller in the context of the transaction
+        buyer (Entity): Entity that is the buyer in the context of the transaction
+        total_trade (int): Total trade value, represented as an integer value
+    """
+    # updates seller gold
     prior_seller_gold = getattr(seller, 'gold')
     updated_seller_gold = prior_seller_gold + total_trade
     setattr(seller, 'gold', updated_seller_gold)
 
+    # updates buyer gold
     prior_buyer_gold = getattr(buyer, 'gold')
     updated_buyer_gold = prior_buyer_gold - total_trade
     setattr(buyer, 'gold', updated_buyer_gold)
