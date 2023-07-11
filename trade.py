@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
+import enum
 from typing import Dict
 
 
@@ -76,18 +77,34 @@ class Transaction:
     item_qty: int
 
 
-@dataclass()
+@dataclass(slots=True)
 class Inventory:
-    items: Dict[str, int]
     gold: int
+    linen: Item
+    wool: Item
+
+    def __str__(self):
+        return f'Inventory: {self.linen} {self.wool} Gold: {self.gold}'
 
 
-@dataclass(frozen=True)
+@dataclass()
 class Item:
     name: str
     quantity: int
     category: Category
     inputs: list = field(default_factory=list)
+
+    def __repr__(self):
+        return f'Item: {self.name} Qty: {self.quantity}'
+
+    def update_quantity(self, quantity):
+        self.quantity = quantity
+
+    def get_category(self):
+        return self.category
+
+    def get_inputs(self):
+        return self.inputs
 
 
 class Category(Enum):
