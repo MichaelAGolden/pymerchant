@@ -1,5 +1,7 @@
 from __future__ import annotations
-import validators as v
+from dataclasses import dataclass
+import player
+import market
 
 
 def set_inventory(seller, buyer, item_name, item_qty):
@@ -43,29 +45,44 @@ def set_gold(seller, buyer, total_trade):
     setattr(buyer, 'gold', updated_buyer_gold)
 
 
-def log_transaction(player, market, item_name, item_price, item_qty):
+def log_transaction(buyer, seller, item_name, item_price, item_qty):
     pass
 
 
-def trade(player, market, trade_type, item_name, item_price, item_qty):
+def trade(user, city_market, trade_type, item_name, item_price, item_qty):
     total_trade = item_price * item_qty
     if trade_type == 'buy':
-        v.Validators.affordability_check(total_trade, player, trade)
-        v.Validators.check_inventory_capacity(item_qty, player, trade)
-        set_gold(player, market, total_trade)
-        set_inventory(player, market, item_name, item_qty)
-        log_transaction(player, market, item_name,
-                        item_qty, item_price, total_trade)
+        buyer = user
+        seller = city_market
     elif trade_type == 'sell':
-        set_gold(market, player)
-        set_inventory(market, player)
-        log_transaction(market, player, item_name,
-                        item_qty, item_price)
+        buyer = city_market
+        seller = user
+    set_gold(buyer, seller, total_trade)
+    set_inventory(buyer, seller, item_name, item_qty)
+    output = log_transaction(buyer, seller, item_name, item_qty, item_price)
+    return output
 
 
+@dataclass()
 class Transaction:
     """
      _summary_
      Transaction class provides class method provides a way to dynamically store transactions between player and markets as its own datatype, encapsulating all information necessary to understand the transaction and is the base input for all logging
     """
-    pass
+    buyer: object
+    seller: object
+    item_name: str
+    item_price: int
+    item_qty: int
+
+
+@dataclass(frozen=True)
+class Inventory:
+    items: list
+    gold: int
+
+
+@dataclass(frozen=True)
+class Item:
+    name: str
+    quantity: int
