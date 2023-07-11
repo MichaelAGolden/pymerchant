@@ -1,8 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from enum import Enum
-import enum
-from typing import Dict
 
 
 def set_inventory(seller, buyer, item_name, item_qty):
@@ -64,38 +61,47 @@ def trade(user, city_market, trade_type, item_name, item_price, item_qty):
     return output
 
 
+# @dataclass()
+# class Transaction:
+#     """
+#      _summary_
+#      Transaction class provides class method provides a way to dynamically store transactions between player and markets as its own datatype, encapsulating all information necessary to understand the transaction and is the base input for all logging
+#     """
+#     buyer: object
+#     seller: object
+#     item_name: str
+#     item_price: int
+#     item_qty: int
+
+
 @dataclass()
-class Transaction:
-    """
-     _summary_
-     Transaction class provides class method provides a way to dynamically store transactions between player and markets as its own datatype, encapsulating all information necessary to understand the transaction and is the base input for all logging
-    """
-    buyer: object
-    seller: object
-    item_name: str
-    item_price: int
-    item_qty: int
-
-
-@dataclass(slots=True)
 class Inventory:
     gold: int
-    linen: Item
-    wool: Item
 
-    def __str__(self):
-        return f'Inventory: {self.linen} {self.wool} Gold: {self.gold}'
+    def __init__(self, gold):
+        self.gold = gold
+        self.build_inventory()
+
+    def build_inventory(self):
+        # build inventory from MARKET_GOODS
+        # for each item in MARKET_GOODS, create an Item object
+        # add the Item object to the inventory
+        # note: each item needs to be accessible via attributes in Inventory object
+        for item_name, item_info in MARKET_GOODS.items():
+            item = Item(name=item_name, quantity=0,
+                        category=item_info['category'], inputs=item_info['inputs'])
+            setattr(self, item_name, item)
+
+    # def get_item(self, item_name):
+    #     return self.goods.get(item_name)
 
 
 @dataclass()
 class Item:
     name: str
     quantity: int
-    category: Category
+    category: str
     inputs: list = field(default_factory=list)
-
-    def __repr__(self):
-        return f'Item: {self.name} Qty: {self.quantity}'
 
     def update_quantity(self, quantity):
         self.quantity = quantity
@@ -105,49 +111,6 @@ class Item:
 
     def get_inputs(self):
         return self.inputs
-
-
-class Category(Enum):
-    TEXTILES = 'textiles'
-    FORESTRY = 'forestry'
-    FARMING = 'farming'
-    ALCOHOL = 'alcohol'
-    FISHING = 'fishing'
-    RANCHING = 'ranching'
-    MINING = 'mining'
-    MANUFACTURED_ITEMS = 'manufactured_items'
-
-
-class Goods(Enum):
-    LINEN = 'linen'
-    BROADCLOTH = 'broadcloth'
-    CLOTHING = 'clothing'
-    WOOD = 'wood'
-    CHARCOAL = 'charcoal'
-    PITCH = 'pitch'
-    GRAIN = 'grain'
-    HONEY = 'honey'
-    HEMP = 'hemp'
-    FLAX = 'flax'
-    SPICES = 'spices'
-    DYES = 'dyes'
-    WINE = 'wine'
-    MEAD = 'mead'
-    BEER = 'beer'
-    FISH = 'fish'
-    SALT = 'salt'
-    OIL = 'oil'
-    MEAT = 'meat'
-    CHEESE = 'cheese'
-    PELTS = 'pelts'
-    WOOL = 'wool'
-    IRON = 'iron'
-    GEMS = 'gems'
-    TOOLS = 'tools'
-    WEAPONS = 'weapons'
-    ARMOR = 'armor'
-    JEWELELRY = 'jewelry'
-    FURNITURE = 'furniture'
 
 
 MARKET_GOODS = {
@@ -181,3 +144,24 @@ MARKET_GOODS = {
     'jewelry': {'inputs': ['iron', 'gems', 'tools'], 'base_price': 1000, 'category': 'manufactured_items'},
     'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200, 'category': 'manufactured_items'}
 }
+
+
+def main():
+    # # test initialize some variables
+    # linen = Item(name='linen', quantity=0,
+    #              category='textiles', inputs=[None])
+    # wool = Item(name='wool', quantity=0, category='textiles',
+    #             inputs=[None])
+    # print(linen)
+    # print(wool)
+    # #this works
+
+    market_inv = Inventory(gold=1000)
+
+    print(market_inv)
+    print("\n\n\n")
+    print(market_inv.__dir__())
+
+
+if __name__ == '__main__':
+    main()
