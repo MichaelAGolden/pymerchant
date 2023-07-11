@@ -1,5 +1,5 @@
 import random
-from trade import Item, Inventory, Category, Goods, MARKET_GOODS
+from trade import Item, Inventory, MARKET_GOODS
 
 
 class Market:
@@ -472,7 +472,7 @@ class Market:
         self.name = name
         self.connected_cities = connected_cities
         self.market_tier = market_tier
-        self.market_inventory = self.build_market()
+        self.market_inventory = Inventory(gold=10000)
 
     def __repr__(self):
         return self.name
@@ -504,12 +504,12 @@ class Market:
         return self.connected_cities
 
 
-def main():
-    houston = Market('houston', 1)
-    print(houston)
-    print("\n".join(houston.market_inventory.items.values()))
-    pass
+# def main():
+#     houston = Market('houston', 1)
+#     print(houston)
+#     print("\n".join(houston.market_inventory.items.values()))
+#     pass
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
