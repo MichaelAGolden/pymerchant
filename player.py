@@ -1,4 +1,5 @@
 import market
+from trade import Item, Inventory
 
 
 class Player:
@@ -9,13 +10,12 @@ class Player:
         self.gold = gold
         self.location = location
         self.max_capacity: float = 300
-        self.inventory = self.init_inventory()
+        self.inventory = Inventory(gold=1000)
 
     def __repr__(self):
         return str(f"[{self.name}, {self.gold}, {self.inventory}, {self.location.name}]")
 
     def init_inventory(self):
-
         items = self.location.BASE_PRICES
         return {item: {'quantity': 0, 'last_purchase_price': 0, 'avg_cost': 0} for item in items}
 
@@ -36,6 +36,20 @@ class Player:
     def show_inventory(self):
         table_heading = "-----------------Player Inventory--------------------"
         table_labels = "---Good---|---Qty---|--avgCost--|---Purchase Price---"
-        short_inventory = [f"--{k}--|----{v['quantity']}----|----{v['avg_cost']}----|----{v['last_purchase_price']}----"
-                           for k, v in self.inventory.items() if v['quantity'] > 0]
+        short_inventory = [f"--{item_name}--|----{info['quantity']}----|----info['avg_cost']----|----info['last_purchase_price']----"
+                           for item_name, info in self.inventory.goods.items() if item_name.quantity > 0]
+
         return table_heading + '\n' + table_labels + '\n' + '\n'.join(short_inventory)
+
+
+def main():
+    lubeck = market.Market('lubeck', 2)
+    me = Player('michael', 1000, lubeck)
+    # print(me)
+    # print(me.inventory)
+    print(me.inventory.goods.keys())
+    # print(me.show_inventory())
+
+
+if __name__ == '__main__':
+    main()
