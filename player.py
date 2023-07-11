@@ -1,5 +1,5 @@
 import market
-from trade import Item, Inventory
+from trade import Inventory
 
 
 class Player:
