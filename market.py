@@ -10,7 +10,7 @@ class Market:
     # List of CITIES and their distances from each other, in nautical miles by sea, charted by hand in google earth
     # Includes the productions of each city
     # includes the region of each city
-    CITIES_DISTANCES = {
+    CITIES = {
         'antwerp': {
             'region': 'english_channel',
             'distances': {
@@ -457,15 +457,6 @@ class Market:
                 'mining': ['iron', 'gems'],
                 'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey', 'spices'],
                 'alcohol': ['wine', 'beer', 'mead']}}
-    }
-
-    # List of CITIES and their region name
-    # Built by using k-means cluster on the cities cities distances from one another from CITIES_DISTANCES
-    CITIES_REGIONS = {
-        'north_baltic': ['novorod', 'riga', 'tallinn', 'stockholm', 'visby'],
-        'south_baltic': ['malmo', 'lubeck', 'rostock', 'stralsund', 'danzig'],
-        'north_sea': ['bergen', 'bremen', 'hamburg', 'kampen'],
-        'english_channel': ['antwerp', 'bruges', 'cologne', 'london'],
     }
 
     def __init__(self, name, market_tier, connected_cities=None,) -> None:
