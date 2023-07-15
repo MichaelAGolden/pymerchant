@@ -857,22 +857,24 @@ class Economy:
         pass
 
     def update_pricing(self, city, item):
-        pass
-        # If price is set at 0, initialize price to base_price out of MARKET_GOODS
+        demand_mu = 0.0
+        demand_sigma = 0.0
+        supply_mu = 0.0
+        supply_sigma = 0.0
 
-        # elif check and see the difference in price versus the base as a percentage. Set a range around the number that the price can fall or increase by, so for 100, lets say plus or minus 20. generate a number in that range 80 to 120.
+        def demand(p, mu, sigma):
+            return 1 - norm.sf(p, mu, sigma)
 
-        # if elif block for supply level
-        # supply_curve = {base_price+or-some amt} Y = 1x + 5
-        # demmand_curve = y = -1x + 5
-        # if elif block for demand level
-        # previous_price = city.market.item.get_price()
-        # demand = city.market.item.get_demand()
-        # supply = city.market.item.get_supply()
-        # demand_curve = int
-        # supply_curve = int
-        # new_price = 10
-        # city.market.item.set_price(new_price)
+        def supply(p, mu, sigma):
+            return norm.cdf(p, mu, sigma)
+
+        def find_equilibrium(demand_mu, demand_sigma, supply_mu, supply_sigma):
+            price_eq = fsolve(lambda p: supply(
+                p, supply_mu, supply_sigma) - demand(p, demand_mu, demand_sigma), 0.5)
+            quantity_eq = supply(price_eq, supply_mu, supply_sigma)
+            return price_eq[0], quantity_eq
+
+        find_equilibrium(demand_mu, demand_sigma, supply_mu, supply_sigma)
 
     def update_supply(self, city, item):
         # previous_supply = city.market.item.get_supply()
