@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from scipy.stats import norm
+from scipy.optimize import fsolve
 
 
 class TradeGoods(Enum):
@@ -44,6 +46,8 @@ class TradeGoodsCategory(Enum):
     RANCHING = 'ranching'
     MINING = 'mining'
     MANUFACTURED_ITEMS = 'manufactured_items'
+
+# Demandlevel represents Mu in demand curve
 
 
 class DemandLevel(Enum):
@@ -160,37 +164,36 @@ MARKET_EVENTS = {
     ]
 }
 
-
 MARKET_GOODS = {
-    'linen': {'inputs': ['hemp', 'flax'], 'base_price': 10, 'category': 'textiles'},
-    'broadcloth': {'inputs': ['wool', 'dyes'], 'base_price': 100, 'category': 'textiles'},
-    'clothing': {'inputs': ['linen', 'wool', 'pelts', 'dyes'], 'base_price': 120, 'category': 'textiles'},
-    'wood': {'inputs': [None], 'base_price': 30, 'category': 'forestry'},
-    'charcoal': {'inputs': ['wood'], 'base_price': 50, 'category': 'forestry'},
-    'pitch': {'inputs': ['wood'], 'base_price': 80, 'category': 'forestry'},
-    'grain': {'inputs': [None], 'base_price': 30, 'category': 'farming'},
-    'honey': {'inputs': [None], 'base_price': 50, 'category': 'farming'},
-    'hemp': {'inputs': [None], 'base_price': 80, 'category': 'farming'},
-    'flax': {'inputs': [None], 'base_price': 50, 'category': 'farming'},
-    'spices': {'inputs': [None], 'base_price': 200, 'category': 'farming'},
-    'dyes': {'inputs': [None], 'base_price': 120, 'category': 'farming'},
-    'wine': {'inputs': [None], 'base_price': 150, 'category': 'alcohol'},
-    'mead': {'inputs': ['honey'], 'base_price': 80, 'category': 'alcohol'},
-    'beer': {'inputs': ['grain'], 'base_price': 60, 'category': 'alcohol'},
-    'fish': {'inputs': ['salt'], 'base_price': 60, 'category': 'fishing'},
-    'salt': {'inputs': [None], 'base_price': 50, 'category': 'fishing'},
-    'oil': {'inputs': ['fish'], 'base_price': 100, 'category': 'fishing'},
-    'meat': {'inputs': ['salt'], 'base_price': 120, 'category': 'ranching'},
-    'cheese': {'inputs': ['salt'], 'base_price': 200, 'category': 'ranching'},
-    'pelts': {'inputs': [None], 'base_price': 150, 'category': 'ranching'},
-    'wool': {'inputs': [None], 'base_price': 90, 'category': 'ranching'},
-    'iron': {'inputs': [None], 'base_price': 100, 'category': 'mining'},
-    'gems': {'inputs': [None], 'base_price': 400, 'category': 'mining'},
-    'tools': {'inputs': ['wood', 'iron', ], 'base_price': 150, 'category': 'manufactured_items'},
-    'weapons': {'inputs': ['wood', 'iron', 'tools'], 'base_price': 200, 'category': 'manufactured_items'},
-    'armor': {'inputs': ['wood', 'iron', 'tools', 'clothing'], 'base_price': 300, 'category': 'manufactured_items'},
-    'jewelry': {'inputs': ['iron', 'gems', 'tools'], 'base_price': 1000, 'category': 'manufactured_items'},
-    'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200, 'category': 'manufactured_items'}
+    'linen': {'inputs': ['hemp', 'flax'], 'base_price': 10, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
+    'broadcloth': {'inputs': ['wool', 'dyes'], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
+    'clothing': {'inputs': ['linen', 'wool', 'pelts', 'dyes'], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
+    'wood': {'inputs': [None], 'base_price': 30, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'forestry'},
+    'charcoal': {'inputs': ['wood'], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'forestry'},
+    'pitch': {'inputs': ['wood'], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'forestry'},
+    'grain': {'inputs': [None], 'base_price': 30, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
+    'honey': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
+    'hemp': {'inputs': [None], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
+    'flax': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
+    'spices': {'inputs': [None], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
+    'dyes': {'inputs': [None], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
+    'wine': {'inputs': [None], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'alcohol'},
+    'mead': {'inputs': ['honey'], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'alcohol'},
+    'beer': {'inputs': ['grain'], 'base_price': 60, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'alcohol'},
+    'fish': {'inputs': ['salt'], 'base_price': 60, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'fishing'},
+    'salt': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'fishing'},
+    'oil': {'inputs': ['fish'], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'fishing'},
+    'meat': {'inputs': ['salt'], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
+    'cheese': {'inputs': ['salt'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
+    'pelts': {'inputs': [None], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
+    'wool': {'inputs': [None], 'base_price': 90, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
+    'iron': {'inputs': [None], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'mining'},
+    'gems': {'inputs': [None], 'base_price': 400, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'mining'},
+    'tools': {'inputs': ['wood', 'iron', ], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
+    'weapons': {'inputs': ['wood', 'iron', 'tools'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
+    'armor': {'inputs': ['wood', 'iron', 'tools', 'clothing'], 'base_price': 300, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
+    'jewelry': {'inputs': ['iron', 'gems', 'tools'], 'base_price': 1000, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
+    'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'}
 }
 
 CITIES = {
@@ -658,7 +661,7 @@ class Item:
     def get_item_quantity(self) -> int:
         return self.quantity
 
-    def update_quantity(self, new_value) -> None:
+    def set_quantity(self, new_value) -> None:
         self.quantity = new_value
 
     def get_item_category(self) -> str:
@@ -698,11 +701,22 @@ class PlayerItem(Item):
 
 @dataclass()
 class MarketItem(Item):
-    current_price: int = 0
-    current_demand: DemandLevel = DemandLevel.NORMAL
+    price: int = 0
+    demand: DemandLevel = DemandLevel.NORMAL
+    supply: SupplyLevel = SupplyLevel.NORMAL
     previous_day_price: int = 0
     previous_day_quantity: int = 0
     previous_day_demand: DemandLevel = DemandLevel.NORMAL
+    previous_day_supply: SupplyLevel = SupplyLevel.NORMAL
+
+    def get_price(self):
+        return self.price
+
+    def set_price(self, new_price):
+        self.price = new_price
+
+    def get_demand(self):
+        return self.demand
 
 
 @dataclass()
@@ -713,7 +727,7 @@ class Inventory:
         return getattr(self, item)
 
     def get_list_of_items(self):
-        return [items for items in self.__dict__]
+        return [items for items in dir(self) if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
 
     def has_input(self, trade_good: str) -> list[str]:
         """
@@ -748,6 +762,7 @@ class PlayerInventory(Inventory):
     # inventory-like object for a player, inherits from Inventory
 
     def __init__(self) -> None:
+        self.gold = 1000
         for item, info in MARKET_GOODS.items():
             trade_good = PlayerItem(item_name=item, quantity=0,
                                     category=info['category'], inputs=info['inputs'])
@@ -783,7 +798,7 @@ class Market(Inventory):
         return getattr(self, item)
 
 
-class ConsoleView:
+class View:
     # handles all GUI aspects of game
     pass
 
@@ -834,38 +849,97 @@ class Economy:
     #         item.update_quantity(new_quantity)
     #         item.update_price(new_price)
 
-    def pricing(self, city, item):
+    def update_market(self, city):
+        # for item in city.market.get_list_of_items():
+        #     self.update_pricing(city, item)
+        #     self.update_demand(city, item)
+        #     self.update_supply(city, item)
         pass
 
-    def supply(self, city, item):
+    def update_pricing(self, city, item):
+        pass
+        # If price is set at 0, initialize price to base_price out of MARKET_GOODS
+
+        # elif check and see the difference in price versus the base as a percentage. Set a range around the number that the price can fall or increase by, so for 100, lets say plus or minus 20. generate a number in that range 80 to 120.
+
+        # if elif block for supply level
+        # supply_curve = {base_price+or-some amt} Y = 1x + 5
+        # demmand_curve = y = -1x + 5
+        # if elif block for demand level
+        # previous_price = city.market.item.get_price()
+        # demand = city.market.item.get_demand()
+        # supply = city.market.item.get_supply()
+        # demand_curve = int
+        # supply_curve = int
+        # new_price = 10
+        # city.market.item.set_price(new_price)
+
+    def update_supply(self, city, item):
+        # previous_supply = city.market.item.get_supply()
+        # price = city.market.item.get_price()
+        # demand = city.market.item.get_demand()
+        pass
+
+    def update_demand(self, city, item):
+        # previous_demand = city.market.item.get_demand()
+        # price = city.market.item.get_price()
+        # supply = city.market.item.get_supply()
+        pass
+
+    def check_rumor(self, city, item):
+
         pass
 
 
+@dataclass()
 class Game:
     # all game logic ends up in here
-    def __init__(self) -> None:
+    def __init__(self, player_name='user', starting_city='lubeck') -> None:
         # setup all game objects at setattr
+        self.player_name = player_name
+        self.starting_city = starting_city
         self.build_cities()
         self.update_city_inventories()
         self.create_player()
 
     def build_cities(self) -> None:
-        pass
+        for city in CITIES.keys():
+            new_city = City(city, market=Market())
+            setattr(self, city, new_city)
 
     def create_player(self) -> None:
+        city = self.get_city(self.starting_city)
+        new_player = Player(self.player_name, city)
+        setattr(self, self.player_name, new_player)
         pass
 
+    def list_of_players(self):
+        return self.player
+
+    def list_of_cities(self):
+        return [city for city in dir(self) if isinstance(getattr(self, city), City)]
+
+    def get_city(self, city: str):
+        return getattr(self, city)
+
     def update_city_inventories(self) -> None:
+        # for city in self.list_of_cities():
+        #     Economy.update_supply(city)
+        #     Economy.update_demand(city)
+        #     Economy.update_pricing(city)
         pass
 
     def build_rumors(self):
-
         pass
 
 
 def main():
-    # Game()
-    string = MARKET_EVENTS[DemandLevel.EXTREME][0]
+    app = Game()
+    print(app)
+    # me = Player(name='me', location='antwerp')
+    # print(app.user)
+    # print(app.antwerp))
+    print(app.antwerp.market.get_list_of_items())
 
 
 if __name__ == "__main__":
