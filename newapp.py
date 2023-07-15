@@ -93,8 +93,8 @@ MARKET_EVENTS = {
     DemandLevel.HIGH: [
         f"Rising tensions on the {Regions}'s borders have led to a high demand for weapons, armor, and tools. Additionally, the region has seen a spike in the demand for mead and beer as soldiers look for ways to relax.",
         f"The {Regions} region is preparing for a grand religious festival, leading to a high demand for spices, dyes, wine, and mead.",
-        f"With the construction of a new cathedral in Cologne, demand for wood, tools, and stained glass has risen dramatically.",
-        f"In Bremen, a trend of lavish parties among the nobility has led to a high demand for luxury goods, especially wine, spices, jewelry, and fine clothing."
+        "With the construction of a new cathedral in Cologne, demand for wood, tools, and stained glass has risen dramatically.",
+        "In Bremen, a trend of lavish parties among the nobility has led to a high demand for luxury goods, especially wine, spices, jewelry, and fine clothing."
     ],
     SupplyLevel.HIGH: [
         f"Favorable fishing conditions in the {Regions} have led to an unusually high supply of fish and salt.",
@@ -659,10 +659,10 @@ class Item:
         return self.item_name
 
     def get_item_quantity(self) -> int:
-        return self.quantity
+        return getattr(self, 'quantity')
 
-    def set_quantity(self, new_value) -> None:
-        self.quantity = new_value
+    def set_item_quantity(self, new_value) -> None:
+        setattr(self, 'quantity', new_value)
 
     def get_item_category(self) -> str:
         return self.category
@@ -701,13 +701,20 @@ class PlayerItem(Item):
 
 @dataclass()
 class MarketItem(Item):
+
     price: int = 0
     demand: DemandLevel = DemandLevel.NORMAL
     supply: SupplyLevel = SupplyLevel.NORMAL
-    previous_day_price: int = 0
-    previous_day_quantity: int = 0
+    previous_price: int = 0
+    previous_quantity: int = 0
     previous_day_demand: DemandLevel = DemandLevel.NORMAL
     previous_day_supply: SupplyLevel = SupplyLevel.NORMAL
+
+    def __post_init__(self):
+        self.demand_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
+        self.demand_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
+        self.supply_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
+        self.supply_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
 
     def get_price(self):
         return self.price
@@ -715,8 +722,35 @@ class MarketItem(Item):
     def set_price(self, new_price):
         self.price = new_price
 
-    def get_demand(self):
-        return self.demand
+    def set_previous_price(self, val):
+        self.previous_price = val
+
+    def set_previous_quantity(self, val):
+        self.previous_quantity = val
+
+    def set_demand_mu(self, val):
+        setattr(self, 'demand_mu', val)
+
+    def get_demand_mu(self):
+        return getattr(self, 'demand_mu')
+
+    def set_supply_mu(self, val):
+        setattr(self, 'supply_mu', val)
+
+    def get_supply_mu(self):
+        return getattr(self, 'supply_mu')
+
+    def set_demand_sigma(self, val):
+        setattr(self, 'demand_sigma', val)
+
+    def get_demand_sigma(self):
+        return getattr(self, 'demand_sigma')
+
+    def set_supply_sigma(self, val):
+        setattr(self, 'supply_sigma', val)
+
+    def get_supply_sigma(self):
+        return getattr(self, 'supply_sigma')
 
 
 @dataclass()
@@ -797,6 +831,16 @@ class Market(Inventory):
     def get_market_item(self, item: str) -> MarketItem:
         return getattr(self, item)
 
+    def get_market_data(self):
+        market_info = list()
+        for name in self.get_list_of_items():
+            item = self.get_item(name)
+            item_name = item.get_item_name()
+            price = item.get_price()
+            quantity = item.get_item_quantity()
+            market_info.append([item_name, price, quantity])
+        return market_info
+
 
 class View:
     # handles all GUI aspects of game
@@ -848,22 +892,25 @@ class Economy:
     #         new_quantity = Economy.supply(city, item)
     #         item.update_quantity(new_quantity)
     #         item.update_price(new_price)
+    @classmethod
+    def update_market(cls, city):
+        for item in city.market.get_list_of_items():
+            itemlookup = city.market.get_item(item)
+            cls.update_pricing(itemlookup)
 
-    def update_market(self, city):
-        # for item in city.market.get_list_of_items():
-        #     self.update_pricing(city, item)
-        #     self.update_demand(city, item)
-        #     self.update_supply(city, item)
-        pass
-
-    def update_pricing(self, city, item):
-        demand_mu = 0.0
-        demand_sigma = 0.0
-        supply_mu = 0.0
-        supply_sigma = 0.0
+    @classmethod
+    def update_pricing(cls, item):
+        demand_mu = item.get_demand_mu()
+        demand_sigma = item.get_demand_sigma()
+        supply_mu = item.get_supply_mu()
+        supply_sigma = item.get_supply_sigma()
+        old_price = item.get_price()
+        old_qty = 100
+        item.set_previous_price(old_price)
+        item.set_previous_quantity(old_qty)
 
         def demand(p, mu, sigma):
-            return 1 - norm.sf(p, mu, sigma)
+            return norm.sf(p, mu, sigma)
 
         def supply(p, mu, sigma):
             return norm.cdf(p, mu, sigma)
@@ -872,9 +919,19 @@ class Economy:
             price_eq = fsolve(lambda p: supply(
                 p, supply_mu, supply_sigma) - demand(p, demand_mu, demand_sigma), 0.5)
             quantity_eq = supply(price_eq, supply_mu, supply_sigma)
-            return price_eq[0], quantity_eq
 
-        find_equilibrium(demand_mu, demand_sigma, supply_mu, supply_sigma)
+            # returns a tuple representing the given coordinates price(gold) and quantity(% of total city demand/production) that solves for the two functions of supply and demand
+            coordinates = (price_eq[0], quantity_eq[0])
+            return coordinates
+
+        output = find_equilibrium(
+            demand_mu, demand_sigma, supply_mu, supply_sigma)
+
+        new_price = round(output[0])
+        new_qty = round(output[1] * old_qty)
+
+        item.set_item_quantity(new_qty)
+        item.set_price(new_price)
 
     def update_supply(self, city, item):
         # previous_supply = city.market.item.get_supply()
@@ -916,7 +973,7 @@ class Game:
         pass
 
     def list_of_players(self):
-        return self.player
+        return getattr(self, 'player')
 
     def list_of_cities(self):
         return [city for city in dir(self) if isinstance(getattr(self, city), City)]
@@ -937,11 +994,13 @@ class Game:
 
 def main():
     app = Game()
-    print(app)
-    # me = Player(name='me', location='antwerp')
-    # print(app.user)
-    # print(app.antwerp))
-    print(app.antwerp.market.get_list_of_items())
+    for city in app.list_of_cities():
+        lookupcity = app.get_city(city)
+        Economy.update_market(lookupcity)
+
+    for city in app.list_of_cities():
+        lookupcity = app.get_city(city)
+        print(lookupcity.market.get_market_data())
 
 
 if __name__ == "__main__":
