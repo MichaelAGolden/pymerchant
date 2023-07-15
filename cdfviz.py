@@ -7,20 +7,25 @@ from scipy.optimize import fsolve
 from matplotlib.widgets import Slider
 
 
+price_upper_bound = 100
+price_lower_bound = 0
+
 # Initial parameters
-mu_demand_init, sigma_demand_init = 1.5, 0.3
-mu_supply_init, sigma_supply_init = 0.5, 0.3
+mu_demand_init, sigma_demand_init = 50, 25
+mu_supply_init, sigma_supply_init = (
+    price_upper_bound/2), (price_upper_bound/4)
 
 # Define the demand and supply curves
 
 
 def demand(p, mu, sigma):
-    # return 1 - norm.cdf(p, mu, sigma)
-    return scipy.stats.norm.cdf(p, mu, sigma)
+    return scipy.stats.norm.sf(p, mu, sigma)
 
 
 def supply(p, mu, sigma):
-    return scipy.stats.norm.sf(p, mu, sigma)
+    # return scipy.stats.norm.logcdf(p, mu, sigma)
+    return scipy.stats.norm.cdf(p, mu, sigma)
+
 
 # Function to find equilibrium
 
@@ -29,11 +34,11 @@ def find_equilibrium(mu_demand, sigma_demand, mu_supply, sigma_supply):
     price_eq = fsolve(lambda p: supply(
         p, mu_supply, sigma_supply) - demand(p, mu_demand, sigma_demand), 0.5)
     quantity_eq = supply(price_eq, mu_supply, sigma_supply)
-    return price_eq[0], quantity_eq
+    return price_eq[0], quantity_eq[0]
 
 
 # Generate initial data
-prices = np.linspace(0, 2, 1000)
+prices = np.linspace(0, price_upper_bound, 1000)
 demand_quantities = demand(prices, mu_demand_init, sigma_demand_init)
 supply_quantities = supply(prices, mu_supply_init, sigma_supply_init)
 
@@ -57,14 +62,18 @@ ax_sigma_demand = plt.axes([0.2, 0.2, 0.65, 0.03], facecolor=axcolor)
 ax_mu_supply = plt.axes([0.2, 0.15, 0.65, 0.03], facecolor=axcolor)
 ax_sigma_supply = plt.axes([0.2, 0.1, 0.65, 0.03], facecolor=axcolor)
 
-s_mu_demand = Slider(ax_mu_demand, 'Demand Level (Mu)', 0.1,
-                     2, valinit=mu_demand_init)
+s_mu_demand = Slider(ax_mu_demand, 'Demand Level (Mu)', price_lower_bound,
+                     price_upper_bound, valinit=mu_demand_init)
+
+
 s_sigma_demand = Slider(ax_sigma_demand, 'Demand Elasticity (Sigma)',
-                        0.01, 1.0, valinit=sigma_demand_init)
-s_mu_supply = Slider(ax_mu_supply, 'Supply Level (Mu)', 0.1,
-                     2.0, valinit=mu_supply_init)
+                        0.1, price_upper_bound, valinit=sigma_demand_init)
+
+
+s_mu_supply = Slider(ax_mu_supply, 'Supply (Mu)', price_lower_bound,
+                     price_upper_bound, valinit=mu_supply_init)
 s_sigma_supply = Slider(ax_sigma_supply, 'Supply Elasticity (Sigma)',
-                        0, 1.0, valinit=sigma_supply_init)
+                        0.1, price_upper_bound, valinit=sigma_supply_init)
 
 
 def update(val):
