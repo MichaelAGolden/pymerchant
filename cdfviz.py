@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+import scipy.stats
+import scipy.misc
+import scipy.special
 from scipy.optimize import fsolve
 from matplotlib.widgets import Slider
 
@@ -13,11 +15,12 @@ mu_supply_init, sigma_supply_init = 0.5, 0.3
 
 
 def demand(p, mu, sigma):
-    return 1 - norm.cdf(p, mu, sigma)
+    # return 1 - norm.cdf(p, mu, sigma)
+    return scipy.stats.norm.cdf(p, mu, sigma)
 
 
 def supply(p, mu, sigma):
-    return norm.cdf(p, mu, sigma)
+    return scipy.stats.norm.sf(p, mu, sigma)
 
 # Function to find equilibrium
 
