@@ -1,8 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from numpy import datetime64
 from scipy.stats import norm
 from scipy.optimize import fsolve
+from datetime import date, datetime
 
 
 class TradeGoods(Enum):
@@ -47,8 +49,6 @@ class TradeGoodsCategory(Enum):
     MINING = 'mining'
     MANUFACTURED_ITEMS = 'manufactured_items'
 
-# Demandlevel represents Mu in demand curve
-
 
 class DemandLevel(Enum):
     ABSENT = auto()
@@ -91,8 +91,8 @@ MARKET_EVENTS = {
         "Mines in Novgorod have struck a large vein of iron, leading to an extreme increase in the supply of iron and manufactured iron goods."
     ],
     DemandLevel.HIGH: [
-        f"Rising tensions on the {Regions}'s borders have led to a high demand for weapons, armor, and tools. Additionally, the region has seen a spike in the demand for mead and beer as soldiers look for ways to relax.",
-        f"The {Regions} region is preparing for a grand religious festival, leading to a high demand for spices, dyes, wine, and mead.",
+        f"Rising tensions on the {region}'s borders have led to a high demand for weapons, armor, and tools. Additionally, the region has seen a spike in the demand for mead and beer as soldiers look for ways to relax.",
+        f"The {region} region is preparing for a grand religious festival, leading to a high demand for spices, dyes, wine, and mead.",
         "With the construction of a new cathedral in Cologne, demand for wood, tools, and stained glass has risen dramatically.",
         "In Bremen, a trend of lavish parties among the nobility has led to a high demand for luxury goods, especially wine, spices, jewelry, and fine clothing."
     ],
@@ -646,6 +646,17 @@ CITIES = {
 }
 
 
+@dataclass()
+class MarketEvent:
+    event_type: Enum
+    affected_region: Enum
+    affected_city: Enum
+    affected_category: Enum
+    affected_trade_good: Enum
+    time_to_expire: datetime
+    time_sent: datetime
+
+
 @dataclass(kw_only=True)
 class Item:
     # base item class used for handling construction of all trading goods
@@ -933,33 +944,46 @@ class Economy:
         item.set_item_quantity(new_qty)
         item.set_price(new_price)
 
-    def update_supply(self, city, item):
+    @classmethod
+    def update_supply(cls, city, item):
         # previous_supply = city.market.item.get_supply()
         # price = city.market.item.get_price()
         # demand = city.market.item.get_demand()
         pass
 
-    def update_demand(self, city, item):
+    @classmethod
+    def update_demand(cls, city, item):
         # previous_demand = city.market.item.get_demand()
         # price = city.market.item.get_price()
         # supply = city.market.item.get_supply()
         pass
 
-    def check_rumor(self, city, item):
+    @classmethod
+    def check_rumor(cls, city, item):
 
+        pass
+
+    @classmethod
+    def broadcast_event(cls, city, rumor) -> MarketEvent:
         pass
 
 
 @dataclass()
 class Game:
+    starting_date = datetime(year=1393, month=7, day=29)
     # all game logic ends up in here
-    def __init__(self, player_name='user', starting_city='lubeck') -> None:
+
+    def __init__(self, player_name='user', starting_city='lubeck', starting_date=starting_date) -> None:
         # setup all game objects at setattr
         self.player_name = player_name
         self.starting_city = starting_city
+        self.current_date = starting_date
         self.build_cities()
         self.update_city_inventories()
         self.create_player()
+
+    def advance_days(self, days_to_advance):
+        setattr(self, 'current_date', days_to_advance)
 
     def build_cities(self) -> None:
         for city in CITIES.keys():
@@ -994,13 +1018,13 @@ class Game:
 
 def main():
     app = Game()
-    for city in app.list_of_cities():
-        lookupcity = app.get_city(city)
-        Economy.update_market(lookupcity)
+    # for city in app.list_of_cities():
+    #     lookupcity = app.get_city(city)
+    #     Economy.update_market(lookupcity)
 
-    for city in app.list_of_cities():
-        lookupcity = app.get_city(city)
-        print(lookupcity.market.get_market_data())
+    # for city in app.list_of_cities():
+    #     lookupcity = app.get_city(city)
+    #     print(lookupcity.market.get_market_data())
 
 
 if __name__ == "__main__":
