@@ -889,20 +889,12 @@ class City:
         citylist_copy = dict(sorted(citylist_copy.items(), key=lambda x: x[1]))
         return citylist_copy
 
-    pass
-
 
 class Economy:
     # Market pricing mechanics
     # sets demands, initial supply
     # updates economy as
 
-    # for city in all_cities:
-    #         for item in city.inventory:
-    #         new_price = Economy.pricing(city, item)
-    #         new_quantity = Economy.supply(city, item)
-    #         item.update_quantity(new_quantity)
-    #         item.update_price(new_price)
     @classmethod
     def update_market(cls, city):
         for item in city.market.get_list_of_items():
@@ -911,6 +903,7 @@ class Economy:
 
     @classmethod
     def update_pricing(cls, item):
+        # class method to update individual item pricing at a market
         demand_mu = item.get_demand_mu()
         demand_sigma = item.get_demand_sigma()
         supply_mu = item.get_supply_mu()
@@ -960,11 +953,24 @@ class Economy:
 
     @classmethod
     def check_rumor(cls, city, item):
-
+        # return list of events in a city
         pass
 
     @classmethod
-    def broadcast_event(cls, city, rumor) -> MarketEvent:
+    def check_MarketEvent(cls):
+        # delete market event if days remaining is 0
+        # call delete market event function
+        pass
+
+    @classmethod
+    def delete_MarketEvent(cls, mktevent):
+        pass
+
+    @classmethod
+    def create_MarketEvent(cls, city, rumor) -> MarketEvent:
+        # check all marketevents at given city,
+        # create new marketevent with UUID in the cities that it applies to
+        # if one market event of the same exact kind already exists, just extend its duration by that number of days
         pass
 
 
