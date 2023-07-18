@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from numpy import datetime64
 from scipy.stats import norm
 from scipy.optimize import fsolve
 from datetime import date, datetime
@@ -24,7 +23,6 @@ class TradeGoods(Enum):
     MEAD = 'mead'
     BEER = 'beer'
     FISH = 'fish'
-    SALT = 'salt'
     OIL = 'oil'
     MEAT = 'meat'
     CHEESE = 'cheese'
@@ -79,74 +77,74 @@ class Regions(Enum):
 
 MARKET_EVENTS = {
     DemandLevel.EXTREME: [
-        f"In the {Regions} region, a new fashion trend has ignited a craze for {TradeGoods.LINEN} and {TradeGoods.BROADCLOTH}. Demand for these textiles has hit unprecedented levels.",
-        f"The King's wedding in the {Regions} region has caused an extreme spike in the demand for jewelry, gems, wine, and luxury furniture.",
+        "In the  region, a new fashion trend has ignited a craze for  and . Demand for these textiles has hit unprecedented levels.",
+        "The King's wedding in the  region has caused an extreme spike in the demand for jewelry, gems, wine, and luxury furniture.",
         "In Antwerp, a famous local artist's paintings have surged in popularity, driving up the demand for fine dyes and textiles to an all-time high.",
         "In London, the royal court has announced a grand feast. The demand for fine wines, cheese, meat, and exotic spices has skyrocketed."
     ],
     SupplyLevel.EXTREME: [
-        f"Exceptionally good weather and crop conditions in the {Regions} region has led to an extreme supply of {TradeGoods.GRAIN}, {TradeGoods.FLAX}, and {TradeGoods.HEMP}.",
-        f"A large iron deposit was discovered in the {Regions}, resulting in a surge in the supply of iron, tools, weapons, and armor.",
+        "Exceptionally good weather and crop conditions in the  region has led to an extreme supply of , }.",
+        "A large iron deposit was discovered in theesulting in a surge in the supply of iron, tools, weapons, and armor.",
         "Fishermen in Malmo have reported a bountiful season, resulting in an extreme supply of fish flooding the markets.",
         "Mines in Novgorod have struck a large vein of iron, leading to an extreme increase in the supply of iron and manufactured iron goods."
     ],
     DemandLevel.HIGH: [
-        f"Rising tensions on the {region}'s borders have led to a high demand for weapons, armor, and tools. Additionally, the region has seen a spike in the demand for mead and beer as soldiers look for ways to relax.",
-        f"The {region} region is preparing for a grand religious festival, leading to a high demand for spices, dyes, wine, and mead.",
+        "Rising tensions on the s borders have led to a high demand for weapons, armor, and tools. Additionally, the region has seen a spike in the demand for mead and beer as soldiers look for ways to relax.",
+        "The  region is preparing for a grand religious festival, leading to a high demand for spices, dyes, wine, and mead.",
         "With the construction of a new cathedral in Cologne, demand for wood, tools, and stained glass has risen dramatically.",
         "In Bremen, a trend of lavish parties among the nobility has led to a high demand for luxury goods, especially wine, spices, jewelry, and fine clothing."
     ],
     SupplyLevel.HIGH: [
-        f"Favorable fishing conditions in the {Regions} have led to an unusually high supply of fish and salt.",
-        f"An explosion in the bee population in the {Regions} region has resulted in a high supply of honey.",
+        "Favorable fishing conditions in the  have led to an unusually high supply of fish and salt.",
+        "An explosion in the bee population in the  region has resulted in a high supply of honey.",
         "Thanks to a bumper crop season in Riga, the supply of grain, flax, and hemp in the city's markets is at a high.",
         "The blacksmiths of Stockholm have perfected a new method of toolmaking, resulting in a surge of high-quality tools available."
     ],
     DemandLevel.ELEVATED: [
-        f"In the {Regions} region, an increase in construction projects has led to an elevated demand for wood, charcoal, pitch, and furniture.",
-        "With the arrival of a travelling troupe in the {Regions}, the demand for clothing, dyes, and alcohol has seen a notable increase.",
+        "In the  region, an increase in construction projects has led to an elevated demand for wood, charcoal, pitch, and furniture.",
+        "With the arrival of a travelling troupe in the , the demand for clothing, dyes, and alcohol has seen a notable increase.",
         "As Kampen gears up for its annual music festival, there's an elevated demand for honey and grain to produce mead and beer.",
         "The latest fashion trend in Bruges has caused an increase in demand for textiles such as linen and broadcloth."
     ],
     SupplyLevel.ELEVATED: [
-        "A mild winter in the {Regions} region has led to an early and abundant harvest, providing an elevated supply of grain, flax, and hemp.",
-        "The discovery of new pastures in the {Regions} region has led to an elevated supply of wool, pelts, meat, and cheese."
+        "A mild winter in the  region has led to an early and abundant harvest, providing an elevated supply of grain, flax, and hemp.",
+        "The discovery of new pastures in the  region has led to an elevated supply of wool, pelts, meat, and cheese."
         "Excellent weather and ocean conditions have led to an elevated supply of fish in Bergen.",
         "Thanks to an unusually mild and wet summer, Stralsund has reported an elevated supply of honey."
     ],
     DemandLevel.NORMAL: [
-        "Trade in the {Regions} region remains steady with a normal demand for forestry and manufactured items.",
-        "In the {Regions} region, demand levels for farming and ranching products are normal and stable.",
+        "Trade in the  region remains steady with a normal demand for forestry and manufactured items.",
+        "In the  region, demand levels for farming and ranching products are normal and stable.",
         "Trade continues as usual in Tallinn with no significant change in demand for goods.",
         "Business as usual in Visby; demand for goods remains steady and normal."
     ],
     SupplyLevel.NORMAL: [
-        "In the {Regions} region, supply of fishing and mining goods is steady, with no major changes in production reported.",
-        "The {Regions} region reports a normal supply of textiles and alcohol, as the production remains consistent.",
+        "In the  region, supply of fishing and mining goods is steady, with no major changes in production reported.",
+        "The region reports a normal supply of textiles and alcohol, as the production remains consistent.",
         "Hamburg's mines and workshops are working at their normal pace, and the supply of tools, weapons, and armor remains stable.",
         "Lubeck's forestry industry continues its steady production, keeping a normal supply of wood, charcoal, and pitch in the markets."
     ],
     DemandLevel.REDUCED: [
-        "Due to a diplomatic dispute in the {Regions} region, the demand for luxury goods like gems, jewelry, and wine has reduced.",
-        "A successful health campaign in the {Regions} region has led to reduced demand for alcohol and meat.",
+        "Due to a diplomatic dispute in the  region, the demand for luxury goods like gems, jewelry, and wine has reduced.",
+        "A successful health campaign in the  region has led to reduced demand for alcohol and meat.",
         "Due to a recent grain surplus in Rostock, the demand for imported grain and related goods has been reduced.",
         "Following a peaceful treaty in Danzig, demand for weapons and armor has reduced significantly."
     ],
     SupplyLevel.REDUCED: [
-        "The closure of several mines in the {Regions} region due to safety concerns has reduced the supply of iron, gems, and tools.",
-        "A disease outbreak among livestock in the {Regions} region has led to a reduced supply of meat, cheese, pelts, and wool.",
+        "The closure of several mines in the  region due to safety concerns has reduced the supply of iron, gems, and tools.",
+        "A disease outbreak among livestock in the  region has led to a reduced supply of meat, cheese, pelts, and wool.",
         "A disease outbreak among the sheep flocks of Malmo has led to a reduced supply of wool, cheese, and meat.",
         "After a fire in one of the major workshops in London, the city sees a reduced supply of manufactured items."
     ],
     DemandLevel.LOW: [
-        "Due to a religious fasting period in the {Regions} region, demand for meat, cheese, and alcohol is low.",
-        "With the ongoing war in the {Regions} region, demand for non-essential manufactured items like furniture and jewelry is low.",
+        "Due to a religious fasting period in the  region, demand for meat, cheese, and alcohol is low.",
+        "With the ongoing war in the  region, demand for non-essential manufactured items like furniture and jewelry is low.",
         "Following a period of fasting in Antwerp, demand for meat, fish, and cheese is currently low.",
         "With an economic downturn in Bremen, demand for luxury goods such as gems, jewelry, and fine furniture is low."
     ],
     SupplyLevel.LOW: [
-        "Unfavorable weather conditions in the {Regions} region have resulted in a low supply of farming products like grain, flax, and hemp.",
-        "A large forest fire in the {Regions} region has significantly reduced the supply of wood, charcoal, and pitch.",
+        "Unfavorable weather conditions in the  region have resulted in a low supply of farming products like grain, flax, and hemp.",
+        "A large forest fire in the  region has significantly reduced the supply of wood, charcoal, and pitch.",
         "Unfavorable weather conditions in Novgorod have led to a low supply of farming products.",
         "After an accident in one of the major mines in Tallinn, the city's supply of gems and iron is currently low."
     ],
@@ -163,7 +161,6 @@ MARKET_EVENTS = {
         "A massive strike by workers in Hamburg's shipyards has halted production of wood, pitch, and tools."
     ]
 }
-
 MARKET_GOODS = {
     'linen': {'inputs': ['hemp', 'flax'], 'base_price': 10, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
     'broadcloth': {'inputs': ['wool', 'dyes'], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
@@ -656,6 +653,33 @@ class MarketEvent:
     time_to_expire: datetime
     time_sent: datetime
 
+    @classmethod
+    def check_rumor(cls, city, item):
+        # return list of events in a city
+        pass
+
+    @classmethod
+    def check_MarketEvent(cls):
+        # delete market event if days remaining is 0
+        # call delete market event function
+        pass
+
+    @classmethod
+    def delete_MarketEvent(cls, mktevent):
+        pass
+
+    @classmethod
+    def get_market_rumor(cls, game):
+        # excluding current player city, return a marketevent from a city or region
+        pass
+
+    @classmethod
+    def create_MarketEvent(cls, city, rumor):
+        # check all marketevents at given city,
+        # create new marketevent with UUID in the cities that it applies to
+        # if one market event of the same exact kind already exists, just extend its duration by that number of days
+        pass
+
 
 @dataclass(kw_only=True)
 class Item:
@@ -845,7 +869,7 @@ class Market(Inventory):
     def get_market_data(self):
         market_info = list()
         for name in self.get_list_of_items():
-            item = self.get_item(name)
+            item: MarketItem = self.get_market_item(name)
             item_name = item.get_item_name()
             price = item.get_price()
             quantity = item.get_item_quantity()
@@ -951,28 +975,6 @@ class Economy:
         # supply = city.market.item.get_supply()
         pass
 
-    @classmethod
-    def check_rumor(cls, city, item):
-        # return list of events in a city
-        pass
-
-    @classmethod
-    def check_MarketEvent(cls):
-        # delete market event if days remaining is 0
-        # call delete market event function
-        pass
-
-    @classmethod
-    def delete_MarketEvent(cls, mktevent):
-        pass
-
-    @classmethod
-    def create_MarketEvent(cls, city, rumor) -> MarketEvent:
-        # check all marketevents at given city,
-        # create new marketevent with UUID in the cities that it applies to
-        # if one market event of the same exact kind already exists, just extend its duration by that number of days
-        pass
-
 
 @dataclass()
 class Game:
@@ -1024,13 +1026,13 @@ class Game:
 
 def main():
     app = Game()
-    # for city in app.list_of_cities():
-    #     lookupcity = app.get_city(city)
-    #     Economy.update_market(lookupcity)
+    for city in app.list_of_cities():
+        lookupcity = app.get_city(city)
+        Economy.update_market(lookupcity)
 
-    # for city in app.list_of_cities():
-    #     lookupcity = app.get_city(city)
-    #     print(lookupcity.market.get_market_data())
+    for city in app.list_of_cities():
+        lookupcity = app.get_city(city)
+        print(lookupcity.market.get_market_data())
 
 
 if __name__ == "__main__":
