@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from scipy.stats import norm
 from scipy.optimize import fsolve
-from datetime import datetime
+from datetime import datetime, timedelta
+import os
 
 
 class TradeGoods(Enum):
@@ -681,6 +682,31 @@ class MarketEvent:
         pass
 
 
+@dataclass()
+class TravelModifier:
+    # Travel Modifier used to modify travel times from city to city
+    # applied to cities, and to players
+
+    speed: float | None
+    # pirates: bool | None
+    # blockade: bool | None
+
+    # speed is a % mod ranging from -50% to +50%
+    @classmethod
+    def set_travel_modifiers(cls, obj, travel_modifier: TravelModifier) -> None:
+        mod_list = cls.get_travel_modifiers(obj)
+        mod_list.append(travel_modifier)
+        setattr(obj, 'travel_mod_list', mod_list)
+
+    @classmethod
+    def get_travel_modifiers(cls, obj) -> list[TravelModifier]:
+        return getattr(obj, 'travel_mod_list')
+
+    @classmethod
+    def get_list_of_modifiers(cls, obj) -> list[TravelModifier]:
+        return [getattr(obj, mods) for mods in obj.__dict__ if isinstance(getattr(obj, mods), TravelModifier)]
+
+
 @dataclass(kw_only=True)
 class Item:
     # base item class used for handling construction of all trading goods
@@ -795,35 +821,15 @@ class Inventory:
     def get_item(self, item: str) -> Item:
         return getattr(self, item)
 
-    def get_list_of_items(self):
-        return [items for items in dir(self) if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+    def get_list_of_items(self) -> list[Item]:
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
 
-    def has_input(self, trade_good: str) -> list[str]:
-        """
-        has_input returns list of Item() names in Inventory that have trade_good as an input
-
-        Args:
-            trade_good (str): trade_good or Item() name
-
-        Returns:
-            list[str]:
-        """
+    def has_input(self, trade_good: str) -> list[Item]:
         return [item for item in self.get_list_of_items(
-        ) if trade_good in self.get_item(item).inputs]
+        ) if trade_good in item.inputs]
 
-    def has_category(self, trade_good_category: str) -> list[str]:
-        """
-        Returns all items in a given category of goods in list
-
-        Dependent on trade_good_category matching one of categories in MARKET_GOODS
-
-        Args:
-            trade_good_category (str):
-
-        Returns:
-            list[str]
-        """
-        return [item for item in self.get_list_of_items() if self.get_item(item).category is trade_good_category]
+    def has_category(self, trade_good_category: str) -> list[Item]:
+        return [item for item in self.get_list_of_items() if item.category is trade_good_category]
 
 
 @dataclass(kw_only=True)
@@ -852,6 +858,18 @@ class PlayerInventory(Inventory):
     def set_capacity(self, new_capacity) -> None:
         self.capacity = new_capacity
 
+    def get_list_of_items(self) -> list[PlayerItem]:
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+
+    def get_current_inventory(self) -> dict[str, dict[str, int]]:
+        current_inv = {}
+        for item in self.get_list_of_items():
+            name = item.get_item_name()
+            quantity = item.get_item_quantity()
+            cost = item.last_purchase_price
+            current_inv[name] = {'quantity': quantity, 'cost': cost}
+        return current_inv
+
 
 @dataclass(kw_only=True)
 class Market(Inventory):
@@ -866,27 +884,131 @@ class Market(Inventory):
     def get_market_item(self, item: str) -> MarketItem:
         return getattr(self, item)
 
+    def get_list_of_items(self) -> list[MarketItem]:
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+
     def get_market_data(self):
         market_info = list()
-        for name in self.get_list_of_items():
-            item: MarketItem = self.get_market_item(name)
-            item_name = item.get_item_name()
-            price = item.get_price()
-            quantity = item.get_item_quantity()
-            market_info.append([item_name, price, quantity])
+        for item in self.get_list_of_items():
+            market_info.append(
+                [item.get_item_name(), item.get_price(), item.get_item_quantity()])
         return market_info
 
 
+@dataclass
 class View:
+
     # handles all GUI aspects of game
-    pass
+    def __init__(self, game: Game) -> None:
+        self.game = game
+        self.menu_selection = None
+        self.menu = ['Trade', 'Trave', 'Inventory', 'Quit']
+
+    def game_loop(self):
+
+        os.system('clear' if os.name == 'posix' else 'cls')
+        while True:
+
+            self.clear_sceen()
+            self.print_game_status()
+            self.game_menu()
+
+            # self.process_input()
+
+            if self.menu_selection == self.menu[3]:
+                break
+
+            self.game.advance_days(1)
+
+    def clear_sceen(self):
+        os.system('clear' if os.name == 'posix' else 'cls')
+
+    def get_datetime(self):
+        return self.game.current_date
+
+    def get_player_location(self):
+        return self.game.player.get_player_location()
+
+    def print_game_status(self):
+        print(
+            f"Day: {self.get_datetime()} Location: {self.get_player_location()}")
+
+        # print("Last Action:", self.user_last_action)
+        # print(self.player.show_inventory())
+        print("Gold:", self.game.player.inv.get_gold())
+
+    def print_player_inventory(self):
+        player_items: dict[str, dict[str, int]
+                           ] = self.game.player.inv.get_current_inventory()
+        print("Player Inventory")
+        for item, info in player_items.items():
+            quantity: int | None = info.get('quantity')
+            cost: int | None = info.get('cost')
+            if info.get('quantity'):
+                print(f"Items:{item} Quantity:{quantity} Cost:{cost}")
+
+    def game_menu(self, statement=None):
+        if statement:
+            print(statement)
+        print("What would you like to do?")
+        for i, option in enumerate(self.menu):
+            print(f"{i+1}. {option}")
+        choice = int(input("Enter the number of your choice: "))
+        # Validators.range_of_list(choice, self.menu, self.game_menu)
+        self.menu_selection = [choice - 1]
+        # self.menu_selection = choice - 1
 
 
 class Travel:
     # Module handles travel between Cities
+    nautical_miles_per_hour = 6
 
-    def distance_to_days(self, city, distance, citylist=CITIES):
-        pass
+    @classmethod
+    def get_time_to_travel(cls, player: Player, origin: City, destination: City):
+        travel_time: timedelta
+        origin_name = origin.get_location_name()
+        destination_name = destination.get_location_name()
+        modlist = []
+        # lookup distance
+        if CITIES[origin_name].get('distances'):
+            distances = CITIES[origin_name].get('distances')
+            if distances.get(destination_name):
+                destination_distance = distances.get(destination_name)
+            else:
+                UnboundLocalError()
+        else:
+            UnboundLocalError()
+
+        # check player state for upgrades
+        if TravelModifier.get_travel_modifiers(player):
+            for mod in TravelModifier.get_travel_modifiers(player):
+                modlist.append(mod)
+                print(mod)
+        if TravelModifier.get_travel_modifiers(origin):
+            for mod in TravelModifier.get_travel_modifiers(origin):
+                modlist.append(mod)
+                print(mod)
+        if TravelModifier.get_travel_modifiers(destination):
+            for mod in TravelModifier.get_travel_modifiers(destination):
+                modlist.append(mod)
+                print(mod)
+
+        total_percentage = 1
+        for mod in modlist:
+            total_percentage += mod.speed
+        # sum modlist
+
+        # randomize the travel time
+        speed = total_percentage * cls.nautical_miles_per_hour
+        time_to_travel = destination_distance / speed
+
+        deltatime = timedelta(hours=time_to_travel)
+
+        return deltatime
+
+    # @classmethod
+    # def calc_travel_speed(cls, distance, modifier) -> float:
+    #     pass
 
 
 @dataclass()
@@ -894,7 +1016,11 @@ class Player:
     # constructor player object
     name: str
     location: City
+    travel_mod_list: list
     inv: PlayerInventory = field(default_factory=PlayerInventory)
+
+    def get_player_location(self):
+        return self.location
 
 
 @dataclass()
@@ -903,9 +1029,10 @@ class City:
     # Market object
     # Market inherits Inventory contains Items
     name: str
+    travel_mod_list: list
     market: Market = field(default_factory=Market)
 
-    def get_location_name(self):
+    def get_location_name(self) -> str:
         return self.name
 
     def sort_closest_cities(self, citylist=CITIES):
@@ -922,8 +1049,7 @@ class Economy:
     @classmethod
     def update_market(cls, city):
         for item in city.market.get_list_of_items():
-            itemlookup = city.market.get_item(item)
-            cls.update_pricing(itemlookup)
+            cls.update_pricing(item)
 
     @classmethod
     def update_pricing(cls, item):
@@ -978,31 +1104,29 @@ class Economy:
 
 @dataclass()
 class Game:
-    starting_date = datetime(year=1393, month=7, day=29)
+    current_date = datetime(year=1393, month=7, day=29, hour=8, minute=0)
+    player: Player
     # all game logic ends up in here
 
-    def __init__(self, player_name='user', starting_city='lubeck', starting_date=starting_date) -> None:
+    def __init__(self, player_name='Michael', starting_city='lubeck') -> None:
         # setup all game objects at setattr
         self.player_name = player_name
-        self.starting_city = starting_city
-        self.current_date = starting_date
         self.build_cities()
         self.update_city_inventories()
-        self.create_player()
+        self.starting_city = starting_city
+        self.player = self.create_player()
 
     def advance_days(self, days_to_advance):
-        setattr(self, 'current_date', days_to_advance)
+        self.current_date += timedelta(days=days_to_advance)
 
     def build_cities(self) -> None:
         for city in CITIES.keys():
-            new_city = City(city, market=Market())
+            new_city = City(city, market=Market(), travel_mod_list=[])
             setattr(self, city, new_city)
 
-    def create_player(self) -> None:
+    def create_player(self) -> Player:
         city = self.get_city(self.starting_city)
-        new_player = Player(self.player_name, city)
-        setattr(self, self.player_name, new_player)
-        pass
+        return Player(self.player_name, city, travel_mod_list=[])
 
     def list_of_players(self):
         return getattr(self, 'player')
@@ -1010,7 +1134,7 @@ class Game:
     def list_of_cities(self):
         return [city for city in dir(self) if isinstance(getattr(self, city), City)]
 
-    def get_city(self, city: str):
+    def get_city(self, city: str) -> City:
         return getattr(self, city)
 
     def update_city_inventories(self) -> None:
@@ -1030,9 +1154,26 @@ def main():
         lookupcity = app.get_city(city)
         Economy.update_market(lookupcity)
 
-    for city in app.list_of_cities():
-        lookupcity = app.get_city(city)
-        print(lookupcity.market.get_market_data())
+    # for city in app.list_of_cities():
+    #     lookupcity = app.get_city(city)
+    #     print(lookupcity.market.get_market_data())
+    # view.print_game_status()
+    # view.print_player_inventory()
+    # app.advance_days(2098)
+    print(Travel.get_time_to_travel(
+        app.player, app.player.location, app.get_city('hamburg')))
+
+    # view.print_game_status()
+    TravelModifier.set_travel_modifiers(app.get_city('hamburg'), neg_fifty)
+
+    print(Travel.get_time_to_travel(
+        app.player, app.player.location, app.get_city('hamburg')))
+
+    print(Travel.get_time_to_travel(
+        app.player, app.player.location, app.get_city('antwerp')))
+
+    print(Travel.get_time_to_travel(
+        app.player, app.player.location, app.get_city('novorod')))
 
 
 if __name__ == "__main__":
