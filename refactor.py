@@ -193,7 +193,6 @@ MARKET_GOODS = {
     'jewelry': {'inputs': ['iron', 'gems', 'tools'], 'base_price': 1000, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
     'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'}
 }
-
 CITIES = {
     'antwerp': {
         'region': 'english_channel',
@@ -897,28 +896,29 @@ class Market(Inventory):
 
 @dataclass
 class View:
+    game: Game
 
     # handles all GUI aspects of game
-    def __init__(self, game: Game) -> None:
+    def __init__(self, game) -> None:
         self.game = game
+        self.menu = ['Travel', 'Trade', 'Inventory', 'Quit']
         self.menu_selection = None
-        self.menu = ['Trade', 'Trave', 'Inventory', 'Quit']
+        self.user_last_action = None
+        self.time_passed = None
 
     def game_loop(self):
 
         os.system('clear' if os.name == 'posix' else 'cls')
         while True:
-
+            Economy.update_market(self.game.player.location)
             self.clear_sceen()
             self.print_game_status()
             self.game_menu()
 
-            # self.process_input()
+            self.process_input()
 
             if self.menu_selection == self.menu[3]:
                 break
-
-            self.game.advance_days(1)
 
     def clear_sceen(self):
         os.system('clear' if os.name == 'posix' else 'cls')
@@ -926,15 +926,12 @@ class View:
     def get_datetime(self):
         return self.game.current_date
 
-    def get_player_location(self):
-        return self.game.player.get_player_location()
-
     def print_game_status(self):
         print(
-            f"Day: {self.get_datetime()} Location: {self.get_player_location()}")
-
-        # print("Last Action:", self.user_last_action)
-        # print(self.player.show_inventory())
+            f"Day: {self.get_datetime()} Location: {self.game.player.get_player_location().get_location_name()}")
+        print("Time Passed", self.time_passed)
+        print("Last Action:", self.user_last_action)
+        print(self.game.player.inv.get_current_inventory())
         print("Gold:", self.game.player.inv.get_gold())
 
     def print_player_inventory(self):
@@ -955,8 +952,79 @@ class View:
             print(f"{i+1}. {option}")
         choice = int(input("Enter the number of your choice: "))
         # Validators.range_of_list(choice, self.menu, self.game_menu)
-        self.menu_selection = [choice - 1]
+        self.menu_selection = self.menu[choice - 1]
         # self.menu_selection = choice - 1
+
+    def travel(self, statement=None):
+
+        self.print_game_status()
+        if statement:
+            print(statement)
+        else:
+            print("Pick your destination")
+
+        list_of_cities: list[str] = self.game.list_of_cities()
+        for i, city in enumerate(list_of_cities):
+            print(f"{i+1}. {city}")
+        choice = int(input(
+            "Enter the number cooresponding with the location: "))
+        # Validators.range_of_list(
+        # choice, self.player.location.connected_cities, self.travel)
+
+        new_location = list_of_cities[choice - 1]
+        self.time_passed = Travel.get_time_to_travel(
+            self.game.player, self.game.player.location, self.game.get_city(new_location))
+        self.game.current_date += self.time_passed
+        self.game.player.location = self.game.get_city(new_location)
+        print(self.game.player.location)
+        print(f"You have arrived in {self.game.player.location}.")
+
+    def trade(self, statement=None):
+        self.print_game_status()
+        if statement:
+            print(statement)
+        item_list = self.game.player.location.market.get_market_data()
+
+        # Build table for displaying trade - refactor into a function
+        for idx, item in enumerate(item_list):
+            print(
+                f"{idx+1}) --{item[0]}--|-----{item[1]}-----|------{item[2]}-------")
+
+        # Get User Input - refactor into other functions?
+        user_item_choice = int(
+            input("Enter the number cooresponding to the item: "))
+        # Validators.range_of_list(user_item_choice, item_list, self.trade)
+
+        user_item_qty = int(input("How many would you like to buy? "))
+
+        # Variable assignment
+        item_price = item_list[user_item_choice - 1][1]
+        user_item_cost = user_item_qty * item_price
+        user_item_name = item_list[user_item_choice - 1][0]
+
+        # Validators.affordability_check(user_item_cost, self.player, self.trade)
+        # Validators.check_inventory_capacity(
+        #     user_item_qty, self.player, self.trade)
+        delta = timedelta(hours=1)
+        self.game.current_date += delta
+        # self.player.buy_update_inventory(
+        #     user_item_name, user_item_qty, item_price, user_item_cost)
+
+    def process_input(self):
+        if self.menu_selection == self.menu[0]:
+            self.user_last_action = "Travel"
+            self.travel()
+        elif self.menu_selection == self.menu[1]:
+            self.user_last_action = "Trade"
+            self.trade()
+        elif self.menu_selection == self.menu[2]:
+            self.user_last_action = "Map"
+            print(self.user_last_action)
+        elif self.menu_selection == self.menu[3]:
+            self.user_last_action = "Quit"
+            print(self.user_last_action)
+        else:
+            print("Invalid input.")
 
 
 class Travel:
@@ -1116,8 +1184,8 @@ class Game:
         self.starting_city = starting_city
         self.player = self.create_player()
 
-    def advance_days(self, days_to_advance):
-        self.current_date += timedelta(days=days_to_advance)
+    def advance_days(self, time: timedelta):
+        self.current_date += time
 
     def build_cities(self) -> None:
         for city in CITIES.keys():
@@ -1149,31 +1217,16 @@ class Game:
 
 
 def main():
-    app = Game()
-    for city in app.list_of_cities():
-        lookupcity = app.get_city(city)
-        Economy.update_market(lookupcity)
+    game = Game()
+    console = View(game)
 
-    # for city in app.list_of_cities():
-    #     lookupcity = app.get_city(city)
-    #     print(lookupcity.market.get_market_data())
-    # view.print_game_status()
-    # view.print_player_inventory()
-    # app.advance_days(2098)
-    print(Travel.get_time_to_travel(
-        app.player, app.player.location, app.get_city('hamburg')))
+    # app.game_loop()
+    console.game_loop()
 
-    # view.print_game_status()
-    TravelModifier.set_travel_modifiers(app.get_city('hamburg'), neg_fifty)
+    # print(console.game.player.location.market.get_market_data())
+    # print(console.game.hamburg.market.get_market_data())
 
-    print(Travel.get_time_to_travel(
-        app.player, app.player.location, app.get_city('hamburg')))
-
-    print(Travel.get_time_to_travel(
-        app.player, app.player.location, app.get_city('antwerp')))
-
-    print(Travel.get_time_to_travel(
-        app.player, app.player.location, app.get_city('novorod')))
+    # print(console.game.lubeck.market.get_market_data())
 
 
 if __name__ == "__main__":
