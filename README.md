@@ -24,3 +24,13 @@ Game is open per requirements to traveling via ship or caravan, could explore a 
 
 
 
+#This project has been about 40 days in the making
+# I drew inspiration for this game from some of my favorite trading simulation games
+# such as Vermeer, The Patrician IV, Port Royale, 1869 
+# 
+# I set out with a goal to capture the simple elements of these games that were enjoyable
+# I studied Finance and Economics and have a BBA in Finance from Texas State 2014
+#
+# As such, I was really most interested in constructing a trading simulation that might have a little more rigor than just purely random numbers and outputs. 
+
+
