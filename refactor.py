@@ -1,10 +1,13 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from scipy.stats import norm
-from scipy.optimize import fsolve
-from datetime import datetime, timedelta
 import os
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum, auto
+from scipy.optimize import fsolve
+from scipy.stats import norm
+from rich import print
+from rich.panel import Panel
+from helper import range_of_list
 
 
 class TradeGoods(Enum):
@@ -76,9 +79,11 @@ class Regions(Enum):
     NORTH_BALTIC = "north baltic"
 
 
-MARKET_EVENTS = {
+# MARKET_EVENTS is a dictionary of DemandLevel and SupplyLevel events that affect the a given region, city, or market_good.
+MARKET_EVENTS: dict[DemandLevel | SupplyLevel, list[str]] = {
+
     DemandLevel.EXTREME: [
-        "In the  region, a new fashion trend has ignited a craze for  and . Demand for these textiles has hit unprecedented levels.",
+        "In the region, a new fashion trend has ignited a craze for  and . Demand for these textiles has hit unprecedented levels.",
         "The King's wedding in the  region has caused an extreme spike in the demand for jewelry, gems, wine, and luxury furniture.",
         "In Antwerp, a famous local artist's paintings have surged in popularity, driving up the demand for fine dyes and textiles to an all-time high.",
         "In London, the royal court has announced a grand feast. The demand for fine wines, cheese, meat, and exotic spices has skyrocketed."
@@ -643,6 +648,262 @@ CITIES = {
 }
 
 
+@dataclass(kw_only=True)
+class Item:
+    """
+    Class that describes an Item or "TradeGood", super class to PlayerItem and MarketItem
+    """
+    item_name: str
+    quantity: int
+    category: str
+    inputs: list[str]
+
+
+@dataclass()
+class PlayerItem(Item):
+    """
+    Class that describes a PlayerItem object, inherits from Item
+
+    """
+    last_seen_price: int = 0
+    last_purchase_price: int = 0
+    last_purchase_quantity: int = 0
+    last_seen_demand: DemandLevel = DemandLevel.NORMAL
+    last_sale_price: int = 0
+    last_sale_quantity: int = 0
+
+
+@dataclass()
+class MarketItem(Item):
+    """
+    Class that describes a MarketItem object, inherits from Item
+
+    """
+
+    price: int = 0
+    demand: DemandLevel = DemandLevel.NORMAL
+    supply: SupplyLevel = SupplyLevel.NORMAL
+    previous_price: int = 0
+    previous_quantity: int = 0
+    previous_day_demand: DemandLevel = DemandLevel.NORMAL
+    previous_day_supply: SupplyLevel = SupplyLevel.NORMAL
+
+    def __post_init__(self):
+        """
+        Post init allows for us to set our demand and supply attributes following initial MarketItem init using @dataclass()
+
+        Values are placeholders for now
+        """
+        self.demand_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
+        self.demand_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
+        self.supply_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
+        self.supply_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
+
+
+@dataclass()
+class Inventory:
+    """
+    Class that describes an Inventory object, super class to PlayerInventory and MarketInventory
+    """
+
+    def get_list_of_items(self) -> list[Item]:
+        """
+        Returns list of items in inventory
+
+        Returns:
+            list[Item]: list of Item objects
+        """
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+
+    def has_input(self, trade_good: str) -> list[Item]:
+        """
+        Returns list of items that have inputs of a given trade_good
+
+        Args:
+            trade_good (str): TradeGood
+
+        Returns:
+            list[Item]: List of Item objects
+        """
+        return [item for item in self.get_list_of_items(
+        ) if trade_good in item.inputs]
+
+    def has_category(self, trade_good_category: str) -> list[Item]:
+        """
+        Returns list of items that have a specific trade_good_category
+
+        Args:
+            trade_good_category (str): TradeGoodsCategory
+
+        Returns:
+            list[Item]: List of Item objects
+        """
+        return [item for item in self.get_list_of_items() if item.category is trade_good_category]
+
+
+@dataclass(kw_only=True)
+class PlayerInventory(Inventory):
+    """
+    Class that describes a PlayerInventory object, inherits from Inventory
+
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes PlayerInventory
+        """
+        self.gold = 1000
+        for item, info in MARKET_GOODS.items():
+            trade_good = PlayerItem(item_name=item, quantity=0,
+                                    category=info['category'], inputs=info['inputs'])
+            setattr(self, item, trade_good)
+
+    def get_player_item(self, item: str) -> PlayerItem:
+        """
+        Returns player_item via an accessor method.
+
+        While not traditionally "pythonic" this prevents runtime errors if an item attribute is not a keyword property of the PlayerInventory
+
+        Args:
+            item (str): item name to lookup
+
+        Returns:
+            PlayerItem: The PlayerItem object
+        """
+        return getattr(self, item)
+
+    def get_list_of_items(self) -> list[PlayerItem]:
+        """
+        Returns list of items of PlayerItem type in PlayerInventory
+
+        Returns:
+            list[PlayerItem]: PlayerItem Objects
+        """
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem)]
+
+    def get_current_inventory(self) -> dict[str, dict[str, int]]:
+        """
+        Returns a dictionary within a dictionary of items in inventory with their quanity and cost as a values to their named keys
+
+        Returns:
+            dict[str, dict[str, int]]: dict[name: item_name, {'quantity':item.quantity, 'cost': item.cost}]
+        """
+        current_inv = {}
+        for item in self.get_list_of_items():
+            name = item.item_name
+            quantity = item.quantity
+            cost = item.last_purchase_price
+            current_inv[name] = {'quantity': quantity, 'cost': cost}
+        return current_inv
+
+
+@dataclass(kw_only=True)
+class Market(Inventory):
+    """
+    Class that describes an MarketInventory object, inherits from Inventory class
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes MarketInventory
+        """
+        for item, info in MARKET_GOODS.items():
+            trade_good = MarketItem(item_name=item, quantity=0,
+                                    category=info['category'], inputs=info['inputs'])
+            setattr(self, item, trade_good)
+
+    def get_list_of_items(self) -> list[MarketItem]:
+        """
+        Returns list of MarketItems in MarketInventory
+
+        Returns:
+            list[MarketItem]: MarketItem object
+        """
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+
+    def get_market_data(self):
+        """
+        Returns a list of list of [item_name, item.price, item.quantity] for all items in market
+
+        Returns:
+            list[list[str,int,int]]: [[self.item_name, self.item.price, self.item.quantity]...[]]
+        """
+        market_info = list()
+        for item in self.get_list_of_items():
+            market_info.append(
+                [item.item_name, item.price, item.quantity])
+        return market_info
+
+    @classmethod
+    def update_market(cls, city):
+        """
+        Updates all prices for items in a given city
+
+        Args:
+            city (City): City we are updating
+        """
+        for item in city.market.get_list_of_items():
+            cls.update_pricing(item)
+
+    @classmethod
+    def update_pricing(cls, item: MarketItem):
+        """
+        needs rework
+        Args:
+            item (MarketItem): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        # class method to update individual item pricing at a market
+        demand_mu = item.demand_mu
+        demand_sigma = item.demand_sigma
+        supply_mu = item.supply_mu
+        supply_sigma = item.supply_sigma
+
+        item.previous_price = item.price
+        item.previous_quantity = item.quantity
+
+        def demand(p, mu, sigma):
+            return norm.sf(p, mu, sigma)
+
+        def supply(p, mu, sigma):
+            return norm.cdf(p, mu, sigma)
+
+        def find_equilibrium(demand_mu, demand_sigma, supply_mu, supply_sigma):
+            price_eq = fsolve(lambda p: supply(
+                p, supply_mu, supply_sigma) - demand(p, demand_mu, demand_sigma), 0.5)
+            quantity_eq = supply(price_eq, supply_mu, supply_sigma)
+
+            # returns a tuple representing the given coordinates price(gold) and quantity(% of total city demand/production) that solves for the two functions of supply and demand
+            coordinates = (price_eq[0], quantity_eq[0])
+            return coordinates
+
+        output = find_equilibrium(
+            demand_mu, demand_sigma, supply_mu, supply_sigma)
+
+        new_price = round(output[0])
+        new_qty = round(output[1] * item.previous_quantity)
+
+        item.quantity = new_qty
+        item.price = new_price
+
+    @classmethod
+    def update_supply(cls, city, item):
+        # previous_supply = city.market.item.get_supply()
+        # price = city.market.item.price
+        # demand = city.market.item.get_demand()
+        pass
+
+    @classmethod
+    def update_demand(cls, city, item):
+        # previous_demand = city.market.item.get_demand()
+        # price = city.market.item.price()
+        # supply = city.market.item.get_supply()
+        pass
+
+
 @dataclass()
 class MarketEvent:
     """
@@ -796,388 +1057,34 @@ class TravelModifier:
     #     return [getattr(obj, mods) for mods in obj.__dict__ if isinstance(getattr(obj, mods), TravelModifier)]
 
 
-@dataclass(kw_only=True)
-class Item:
-    """
-    Class that describes an Item or "TradeGood", super class to PlayerItem and MarketItem
-    """
-    item_name: str
-    quantity: int
-    category: str
-    inputs: list[str]
-
-
 @dataclass()
-class PlayerItem(Item):
+class Player:
     """
-    Class that describes a PlayerItem object, inherits from Item
+    Describes Player object
+    Player does have access to the City object the player is located in
+    Player also has access to their PlayerInventory
 
+    Care is needed to not inadvertently call a cities inventory self.location.market instead of self.inv
     """
-    last_seen_price: int = 0
-    last_purchase_price: int = 0
-    last_purchase_quantity: int = 0
-    last_seen_demand: DemandLevel = DemandLevel.NORMAL
-    last_sale_price: int = 0
-    last_sale_quantity: int = 0
-
-
-@dataclass()
-class MarketItem(Item):
-    """
-    Class that describes a MarketItem object, inherits from Item
-
-    """
-
-    price: int = 0
-    demand: DemandLevel = DemandLevel.NORMAL
-    supply: SupplyLevel = SupplyLevel.NORMAL
-    previous_price: int = 0
-    previous_quantity: int = 0
-    previous_day_demand: DemandLevel = DemandLevel.NORMAL
-    previous_day_supply: SupplyLevel = SupplyLevel.NORMAL
-
-    def __post_init__(self):
-        """
-        Post init allows for us to set our demand and supply attributes following initial MarketItem init using @dataclass()
-        """
-        self.demand_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
-        self.demand_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
-        self.supply_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
-        self.supply_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
-
-    def set_demand_mu(self, val):
-        setattr(self, 'demand_mu', val)
-
-    def get_demand_mu(self):
-        return getattr(self, 'demand_mu')
-
-    def set_supply_mu(self, val):
-        setattr(self, 'supply_mu', val)
-
-    def get_supply_mu(self):
-        return getattr(self, 'supply_mu')
-
-    def set_demand_sigma(self, val):
-        setattr(self, 'demand_sigma', val)
-
-    def get_demand_sigma(self):
-        return getattr(self, 'demand_sigma')
-
-    def set_supply_sigma(self, val):
-        setattr(self, 'supply_sigma', val)
-
-    def get_supply_sigma(self):
-        return getattr(self, 'supply_sigma')
-
-
-@dataclass()
-class Inventory:
-    """
-    Class that describes an Inventory object, super class to PlayerInventory and MarketInventory
-    """
-
-    def get_list_of_items(self) -> list[Item]:
-        """
-        Returns list of items in inventory
-
-        Returns:
-            list[Item]: list of Item objects
-        """
-        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
-
-    def has_input(self, trade_good: str) -> list[Item]:
-        """
-        Returns list of items that have inputs of a given trade_good
-
-        Args:
-            trade_good (str): TradeGood
-
-        Returns:
-            list[Item]: List of Item objects
-        """
-        return [item for item in self.get_list_of_items(
-        ) if trade_good in item.inputs]
-
-    def has_category(self, trade_good_category: str) -> list[Item]:
-        """
-        Returns list of items that have a specific trade_good_category
-
-        Args:
-            trade_good_category (str): TradeGoodsCategory
-
-        Returns:
-            list[Item]: List of Item objects
-        """
-        return [item for item in self.get_list_of_items() if item.category is trade_good_category]
-
-
-@dataclass(kw_only=True)
-class PlayerInventory(Inventory):
-    """
-    Class that describes a PlayerInventory object, inherits from Inventory
-
-    """
-
-    def __init__(self) -> None:
-        """
-        Initializes PlayerInventory
-        """
-        self.gold = 1000
-        for item, info in MARKET_GOODS.items():
-            trade_good = PlayerItem(item_name=item, quantity=0,
-                                    category=info['category'], inputs=info['inputs'])
-            setattr(self, item, trade_good)
-
-    def get_player_item(self, item: str) -> PlayerItem:
-        """
-        Returns player_item via an accessor method.
-
-        While not traditionally "pythonic" this prevents runtime errors if an item attribute is not a keyword property of the PlayerInventory
-
-        Args:
-            item (str): item name to lookup
-
-        Returns:
-            PlayerItem: The PlayerItem object
-        """
-        return getattr(self, item)
-
-    def get_list_of_items(self) -> list[PlayerItem]:
-        """
-        Returns list of items of PlayerItem type in PlayerInventory
-
-        Returns:
-            list[PlayerItem]: PlayerItem Objects
-        """
-        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem)]
-
-    def get_current_inventory(self) -> dict[str, dict[str, int]]:
-        """
-        Returns a dictionary within a dictionary of items in inventory with their quanity and cost as a values to their named keys
-
-        Returns:
-            dict[str, dict[str, int]]: dict[name: item_name, {'quantity':item.quantity, 'cost': item.cost}]
-        """
-        current_inv = {}
-        for item in self.get_list_of_items():
-            name = item.item_name
-            quantity = item.quantity
-            cost = item.last_purchase_price
-            current_inv[name] = {'quantity': quantity, 'cost': cost}
-        return current_inv
-
-
-@dataclass(kw_only=True)
-class Market(Inventory):
-    """
-    Class that describes an MarketInventory object, inherits from Inventory class
-    """
-
-    def __init__(self) -> None:
-        """
-        Initializes MarketInventory
-        """
-        for item, info in MARKET_GOODS.items():
-            trade_good = MarketItem(item_name=item, quantity=0,
-                                    category=info['category'], inputs=info['inputs'])
-            setattr(self, item, trade_good)
-
-    def get_market_item(self, item: str) -> MarketItem:
-        """
-        Returns player_item via an accessor method.
-
-        While not traditionally "pythonic" this prevents runtime errors if an item attribute is not a keyword property of the MarketInventory
-
-        Args:
-            item (str): item name to lookup
-
-        Returns:
-            MarketItem: The MarketItem object
-        """
-        return getattr(self, item)
-
-    def get_list_of_items(self) -> list[MarketItem]:
-        """
-        Returns list of MarketItems in MarketInventory
-
-        Returns:
-            list[MarketItem]: MarketItem object
-        """
-        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
-
-    def get_market_data(self):
-        """
-        Returns a list of list of [item_name, item.price, item.quantity] for all items in market
-
-        Returns:
-            list[list[str,int,int]]: [[self.item_name, self.item.price, self.item.quantity]...[]]
-        """
-        market_info = list()
-        for item in self.get_list_of_items():
-            market_info.append(
-                [item.item_name, item.price, item.quantity])
-        return market_info
-
-
-@dataclass
-class View:
-    game: Game
-
-    # handles all GUI aspects of game
-    def __init__(self, game) -> None:
-        self.game = game
-        self.menu = ['Travel', 'Trade', 'Inventory', 'Quit']
-        self.menu_selection = None
-        self.user_last_action = None
-        self.time_passed = None
-
-    def game_loop(self):
-
-        os.system('clear' if os.name == 'posix' else 'cls')
-        while True:
-            Economy.update_market(self.game.player.location)
-            self.clear_sceen()
-            self.print_game_status()
-            self.game_menu()
-
-            self.process_input()
-
-            if self.menu_selection == self.menu[3]:
-                break
-
-    def clear_sceen(self):
-        os.system('clear' if os.name == 'posix' else 'cls')
-
-    def get_datetime(self):
-        return self.game.current_date
-
-    def print_game_status(self):
-        print(
-            f"Day: {self.get_datetime()} Location: {self.game.player.get_player_location().get_location_name()}")
-        print("Time Passed", self.time_passed)
-        print("Last Action:", self.user_last_action)
-        # print(self.game.player.inv.get_current_inventory())
-        print("Gold:", self.game.player.inv.get_gold())
-
-    def print_player_inventory(self):
-        player_items: dict[str, dict[str, int]
-                           ] = self.game.player.inv.get_current_inventory()
-        print("Player Inventory")
-        for item, info in player_items.items():
-            quantity: int | None = info.get('quantity')
-            cost: int | None = info.get('cost')
-            if info.get('quantity'):
-                print(f"Items:{item} Quantity:{quantity} Cost:{cost}")
-
-    def game_menu(self, statement=None):
-        if statement:
-            print(statement)
-        print("What would you like to do?")
-        for i, option in enumerate(self.menu):
-            print(f"{i+1}. {option}")
-        choice = int(input("Enter the number of your choice: "))
-        # Validators.range_of_list(choice, self.menu, self.game_menu)
-        self.menu_selection = self.menu[choice - 1]
-        # self.menu_selection = choice - 1
-
-    def travel(self, statement=None):
-
-        self.print_game_status()
-        if statement:
-            print(statement)
-        else:
-            print("Pick your destination")
-
-        # list_of_cities: list[str] = self.game.list_of_cities()
-        enumerate_city_dist = enumerate(self.game.player.location.sort_closest_cities(
-        ).items())
-        enumerated_dict_of_cities = []
-        for i, (city, distance) in enumerate_city_dist:
-            print(f"{i+1}. {city} {distance} (distance in NM)")
-            enumerated_dict_of_cities.append((city, distance))
-        choice = int(input(
-            "Enter the number cooresponding with the location: "))
-        # Validators.range_of_list(
-        # choice, self.player.location.connected_cities, self.travel)
-
-        new_location = enumerated_dict_of_cities[choice-1][0]
-
-        self.time_passed = Travel.get_time_to_travel(
-            self.game.player, self.game.player.location, self.game.get_city(new_location))
-        self.game.current_date += self.time_passed
-        self.game.player.location = self.game.get_city(new_location)
-        # print(self.game.player.location)
-        print(
-            f"You have arrived in {self.game.player.location.get_location_name().capitalize()}.")
-
-    def trade(self, statement=None):
-        self.print_game_status()
-        if statement:
-            print(statement)
-        item_list = self.game.player.location.market.get_market_data()
-
-        # Build table for displaying trade - refactor into a function
-        for idx, item in enumerate(item_list):
-            print(
-                f"{idx+1}) --{item[0]}--|-----{item[1]}-----|------{item[2]}-------")
-
-        # Get User Input - refactor into other functions?
-        user_item_choice = int(
-            input("Enter the number cooresponding to the item: "))
-        # Validators.range_of_list(user_item_choice, item_list, self.trade)
-
-        user_item_qty = int(input("How many would you like to buy? "))
-
-        # Variable assignment
-        item_price = item_list[user_item_choice - 1][1]
-        user_item_cost = user_item_qty * item_price
-        user_item_name = item_list[user_item_choice - 1][0]
-
-        # Validators.affordability_check(user_item_cost, self.player, self.trade)
-        # Validators.check_inventory_capacity(
-        #     user_item_qty, self.player, self.trade)
-        delta = timedelta(hours=1)
-        self.game.current_date += delta
-        # self.player.buy_update_inventory(
-        #     user_item_name, user_item_qty, item_price, user_item_cost)
-
-    def process_input(self):
-        if self.menu_selection == self.menu[0]:
-            self.user_last_action = "Travel"
-            self.travel()
-        elif self.menu_selection == self.menu[1]:
-            self.user_last_action = "Trade"
-            self.trade()
-        elif self.menu_selection == self.menu[2]:
-            self.user_last_action = "Map"
-            print(self.user_last_action)
-        elif self.menu_selection == self.menu[3]:
-            self.user_last_action = "Quit"
-            print(self.user_last_action)
-        else:
-            print("Invalid input.")
-
-    def test(self):
-        pass
-
-
-class Travel:
-    # Module handles travel between Cities
-    # placeholder value idk what it should be
-    nautical_miles_per_hour = 6
+    name: str
+    location: City
+    travel_mod_list: list
+    travel_speed = nautical_miles_per_hour = 6
+    inv: PlayerInventory = field(default_factory=PlayerInventory)
 
     @classmethod
     def get_time_to_travel(cls, player: Player, origin: City, destination: City):
         travel_time: timedelta
-        origin_name = origin.get_location_name()
-        destination_name = destination.get_location_name()
+        origin_name = origin.name
+        destination_name = destination.name
         modlist = []
         # lookup distance
         if CITIES[origin_name].get('distances'):
             distances = CITIES[origin_name].get('distances')
-            if distances.get(destination_name):
-                destination_distance = distances.get(destination_name)
-            else:
+            try:
+                if distances.get(destination_name):
+                    destination_distance = distances.get(destination_name)
+            except:
                 UnboundLocalError()
         else:
             UnboundLocalError()
@@ -1209,110 +1116,54 @@ class Travel:
 
         return deltatime
 
-    # @classmethod
-    # def calc_travel_speed(cls, distance, modifier) -> float:
-    #     pass
-
-
-@dataclass()
-class Player:
-    # constructor player object
-    name: str
-    location: City
-    travel_mod_list: list
-    inv: PlayerInventory = field(default_factory=PlayerInventory)
-
-    def get_player_location(self):
-        return self.location
-
 
 @dataclass()
 class City:
-    # city object contains
-    # Market object
-    # Market inherits Inventory contains Items
+    """
+    Describes City Object
+    """
     name: str
     travel_mod_list: list
     market: Market = field(default_factory=Market)
 
-    def get_location_name(self) -> str:
-        return self.name
-
     def sort_closest_cities(self, citylist=CITIES) -> dict[str, int]:
+        """
+        Sorting function for cities by distance.
+
+        Note: Each distance in the CITIES dictionary was measured by hand from city to city in Google Earth in Nautical Miles by a novice approximation of a sea route.
+        Likely these numbers are far off what real maritime sailing distance approximations would be, but I did not have the experience or time to write a program to approximate these distances for me, and from my research, it seems that if you could write such a program, it could be a very lucrative endeavor as the paid programs for this are very expensive.
+
+        Nevertheless, these approximations are much more accurate than a as the crow flies measure between cities.
+
+        Args:
+            citylist (dict[str: dict[str, Any]]): Dictionary of cities with their coorresponding production attributes, used to build City objects. Defaults to CITIES.
+
+        Returns:
+            dict[str, int]: _description_
+        """
         citylist_copy = citylist[self.name]['distances'].copy()
         citylist_copy = dict(sorted(citylist_copy.items(), key=lambda x: x[1]))
         return citylist_copy
 
 
-class Economy:
-    # Market pricing mechanics
-    # sets demands, initial supply
-    # updates economy as
-
-    @classmethod
-    def update_market(cls, city):
-        for item in city.market.get_list_of_items():
-            cls.update_pricing(item)
-
-    @classmethod
-    def update_pricing(cls, item):
-        # class method to update individual item pricing at a market
-        demand_mu = item.get_demand_mu()
-        demand_sigma = item.get_demand_sigma()
-        supply_mu = item.get_supply_mu()
-        supply_sigma = item.get_supply_sigma()
-        old_price = item.price
-        old_qty = 100
-        item.set_previous_price(old_price)
-        item.set_previous_quantity(old_qty)
-
-        def demand(p, mu, sigma):
-            return norm.sf(p, mu, sigma)
-
-        def supply(p, mu, sigma):
-            return norm.cdf(p, mu, sigma)
-
-        def find_equilibrium(demand_mu, demand_sigma, supply_mu, supply_sigma):
-            price_eq = fsolve(lambda p: supply(
-                p, supply_mu, supply_sigma) - demand(p, demand_mu, demand_sigma), 0.5)
-            quantity_eq = supply(price_eq, supply_mu, supply_sigma)
-
-            # returns a tuple representing the given coordinates price(gold) and quantity(% of total city demand/production) that solves for the two functions of supply and demand
-            coordinates = (price_eq[0], quantity_eq[0])
-            return coordinates
-
-        output = find_equilibrium(
-            demand_mu, demand_sigma, supply_mu, supply_sigma)
-
-        new_price = round(output[0])
-        new_qty = round(output[1] * old_qty)
-
-        item.quantity = new_qty
-        item.price = new_price
-
-    @classmethod
-    def update_supply(cls, city, item):
-        # previous_supply = city.market.item.get_supply()
-        # price = city.market.item.price
-        # demand = city.market.item.get_demand()
-        pass
-
-    @classmethod
-    def update_demand(cls, city, item):
-        # previous_demand = city.market.item.get_demand()
-        # price = city.market.item.price()
-        # supply = city.market.item.get_supply()
-        pass
-
-
 @dataclass()
 class Game:
+    """
+    Game class holds all objects necessary for the game, including Player, City, and all of their objects and attriburtes
+
+    Game logic and initialization of game occurs here
+    """
     current_date = datetime(year=1393, month=7, day=29, hour=8, minute=0)
     player: Player
-    # all game logic ends up in here
 
     def __init__(self, player_name='Michael', starting_city='lubeck') -> None:
-        # setup all game objects at setattr
+        """
+        Games
+
+        Args:
+            player_name (str, optional): Name of Player. Defaults to 'Michael'.
+            starting_city (str, optional): Name of starting_city player is located in. Defaults to 'lubeck'.
+        """
         self.player_name = player_name
         self.build_cities()
         self.update_city_inventories()
@@ -1320,48 +1171,228 @@ class Game:
         self.player = self.create_player()
 
     def advance_days(self, time: timedelta):
+        """
+        Advances game time by a datetime.timedelta
+
+        Args:
+            time (timedelta): timedelta is defined in datetime module
+        """
         self.current_date += time
 
     def build_cities(self) -> None:
+        """
+        Creates all city objects for game and assigns them to our game object
+
+        To be run in __init__() function
+
+        Note we use setattr() function because cities are not defined as keyword properties at time of
+        """
         for city in CITIES.keys():
-            new_city = City(city, market=Market(), travel_mod_list=[])
+            new_city = City(city, market=Market(), travel_mod_list=list())
             setattr(self, city, new_city)
 
     def create_player(self) -> Player:
+        """
+        Creates player object for game
+
+        Returns:
+            Player: Player object
+        """
         city = self.get_city(self.starting_city)
         return Player(self.player_name, city, travel_mod_list=[])
 
-    def list_of_players(self):
-        return getattr(self, 'player')
-
     def list_of_cities(self):
+        """
+        Returns list of cities in game
+
+        Returns:
+            List[City]: List of City objects in game
+        """
         return [city for city in dir(self) if isinstance(getattr(self, city), City)]
 
     def get_city(self, city: str) -> City:
+        """
+        Returns player_item via an accessor method.
+
+        While not traditionally "pythonic" this prevents runtime errors if a City object is not an attribute of the Game
+
+        Args:
+            city (str): Name of city, not the City object itself
+
+        Returns:
+            City: City Object
+        """
         return getattr(self, city)
 
     def update_city_inventories(self) -> None:
+        """
+        Function to update inventory supply level and pricing for all cities in the game, to be run ONLY once per game day
+        """
         # for city in self.list_of_cities():
         #     Economy.update_supply(city)
         #     Economy.update_demand(city)
         #     Economy.update_pricing(city)
         pass
 
-    def build_rumors(self):
-        pass
+
+@dataclass
+class View:
+    """
+    View component of the game, wraps around game object.
+
+    This could be later replaced by a more complex system written in CURSES or some non-console based game.
+    I've considered adding a GUI but that might be too much for this time
+    """
+    game: Game
+
+    def __init__(self) -> None:
+        """
+        Initializes View object, defines menu and keyword attributes not set in @dataclass() init
+        """
+        self.game = Game()
+        self.menu = ['Travel', 'Trade', 'Inventory', 'Quit']
+        self.menu_selection = None
+        self.user_last_action = None
+        self.time_passed = None
+
+    def game_loop(self):
+        """
+        Main loop that runs and draws the screen and calls the relevant functions in from view and game
+        """
+        while self.menu_selection != 'Quit':
+            Market.update_market(self.game.player.location)
+            self.game_menu()
+            self.process_input()
+
+    def clear_sceen(self):
+        """
+        Function that clears screen depending on what OS user is running
+        """
+        os.system('clear' if os.name == 'posix' else 'cls')
+
+    def print_game_status(self):
+        """
+        Simple game status method intended to be called at start of each turn or menu selection
+        """
+        print(Panel.fit("[bold yellow] Hi, I'm a Panel", border_style="red"))
+        print(
+            f"Date: {self.game.current_date} Location: {self.game.player.location.name.capitalize()}")
+        print("Time Passed:", self.time_passed)
+        print("Last Action:", self.user_last_action)
+        print("Gold:", self.game.player.inv.gold)
+
+    def print_player_inventory(self):
+        """
+        Prints a formatted list of non-zero quantity player inventory items
+        """
+        player_items: dict[str, dict[str, int]
+                           ] = self.game.player.inv.get_current_inventory()
+        hyphen = chr(45)
+
+        print(f"{'Player Inventory':{hyphen}^60}")
+        print(f"{'Trade Good':<20}{'Quantity':>20}{'Cost':^20}")
+        for item, info in player_items.items():
+            quantity: int | None = info.get('quantity')
+            cost: int | None = info.get('cost')
+            if info.get('quantity'):
+                print(f"Items:{item} Quantity:{quantity} Cost:{cost}")
+
+    def game_menu(self):
+        """
+        Displays game_menu and asks user for input
+
+        """
+        self.clear_sceen()
+        self.print_game_status()
+
+        print("What would you like to do?")
+
+        for i, option in enumerate(self.menu):
+            print(f"{i+1}. {option}")
+
+        choice = range_of_list(self.menu)
+
+        self.menu_selection = self.menu[choice - 1]
+
+    def travel(self):
+        self.clear_sceen()
+        self.print_game_status()
+
+        enumerate_city_dist = enumerate(self.game.player.location.sort_closest_cities(
+        ).items())
+
+        list_of_cities = []
+
+        for i, (city, distance) in enumerate_city_dist:
+            print(f"{i+1}. {city} {distance} (distance in NM)")
+            list_of_cities.append((city, distance))
+
+        choice = range_of_list(list_of_cities)
+
+        new_location = list_of_cities[choice - 1][0]
+
+        self.time_passed = Player.get_time_to_travel(
+            self.game.player, self.game.player.location, self.game.get_city(new_location))
+        self.game.current_date += self.time_passed
+        self.game.player.location = self.game.get_city(new_location)
+        print(
+            f"You have arrived in {self.game.player.location.name.capitalize()}.")
+
+    def trade(self):
+        self.print_game_status()
+
+        item_list = self.game.player.location.market.get_market_data()
+
+        # Build table for displaying trade - refactor into a function
+        for idx, item in enumerate(item_list):
+            print(
+                f"{idx+1}) --{item[0]}--|-----{item[1]}-----|------{item[2]}-------")
+
+        # Get User Input - refactor into other functions?
+        user_item_choice = int(
+            input("Enter the number cooresponding to the item: "))
+
+        user_item_qty = int(input("How many would you like to buy? "))
+
+        # Variable assignment
+        item_price = item_list[user_item_choice - 1][1]
+        user_item_cost = user_item_qty * item_price
+        user_item_name = item_list[user_item_choice - 1][0]
+
+        delta = timedelta(hours=1)
+        self.game.current_date += delta
+        # self.player.buy_update_inventory(
+        #     user_item_name, user_item_qty, item_price, user_item_cost)
+
+    def show_inventory(self):
+        self.clear_sceen()
+        self.print_game_status()
+        self.print_player_inventory()
+
+        exit_inventory = False
+        while not exit_inventory:
+            exit_inventory = input("Press any key to exit inventory")
+
+    def process_input(self):
+        if self.menu_selection == self.menu[0]:
+            self.user_last_action = "Travel"
+            self.travel()
+        elif self.menu_selection == self.menu[1]:
+            self.user_last_action = "Trade"
+            self.trade()
+        elif self.menu_selection == self.menu[2]:
+            self.user_last_action = "Inventory"
+            self.show_inventory()
+        elif self.menu_selection == self.menu[3]:
+            self.user_last_action = "Quit"
+            print(self.user_last_action)
+        else:
+            print("Invalid input.")
 
 
 def main():
-    game = Game()
-    console = View(game)
-    # print(console.game.player.location.sort_closest_cities())
-    # app.game_loop()
+    console = View()
     console.game_loop()
-
-    # print(console.game.player.location.market.get_market_data())
-    # print(console.game.hamburg.market.get_market_data())
-
-    # print(console.game.lubeck.market.get_market_data())
 
 
 if __name__ == "__main__":
