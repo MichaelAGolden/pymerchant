@@ -1,60 +1,50 @@
 
+
+GET_NUMBER_INPUT = "Enter the number cooresponding to your choice: "
+INVALID_CHOICE_NUMBER_IN_RANGE = "Invalid choice. Please enter a number between 1 and {len_list_to_check}"
+
+
 def range_of_list(list_to_check):
-    valid_input = False
-    while not valid_input:
-        choice = input("Enter the number corresponding to your choice: ")
+    valid = False
+    while not valid:
+        choice = input(GET_NUMBER_INPUT)
         try:
             choice = int(choice)
-            valid_input = True
+            valid = True
         except ValueError:
-            print(
-                f"Invalid choice. Please enter a number between 1 and {len(list_to_check)}.")
+            print(INVALID_CHOICE_NUMBER_IN_RANGE.format(
+                len_list_to_check=len(list_to_check)))
     return choice
 
 
-def check_inventory_capacity(self, user_input_qty: int, player: Type[Player], return_function: Callable):
-    """
-    Check_inventory_capacity Checks that the player has enough space in their inventory for the quantity of items they are trying to add.
+def buying_or_selling():
+    while not valid:
+        choice = input("Buying or Selling (enter B/S): ")
+        try:
+            if choice.upper() == 'B':
+                user_selection = 'buying'
+                valid = True
+            elif choice.upper() == 'S':
+                user_selection = 'selling'
+                valid = True
+            else:
+                raise ValueError
+        except ValueError:
+            print("Invalid entry: Please enter B for Buying or S for Selling")
+    return user_selection
 
-    Args:
-        user_input_qty (int): _description_
-        player (Player): _description_
-        return_function (Callable): _description_
 
-    Raises:
-        ValueError: _description_
-
-    Returns:
-        _type_: _description_
-    """
+def check_inventory_capacity(user_input_qty: int, player):
     try:
         if user_input_qty > player.get_capacity():
             raise ValueError
     except ValueError:
-        print(lack_of_space :=
-              "You don't have enough space in your inventory for that.")
-        return return_function(lack_of_space)
+        print("You don't have enough space in your inventory for that.")
 
 
-@classmethod
-def affordability_check(self, item_cost: int, player: Type[Player], return_function: Callable):
-    """
-    Affordability_check Checks that the player has enough gold to afford the item they are trying to buy.
-
-    Args:
-        item_cost (int): _description_
-        player (Player): _description_
-        return_function (Callable): _description_
-
-    Raises:
-        ValueError: _description_
-
-    Returns:
-        _type_: _description_
-    """
+def affordability_check(item_cost: int, player):
     try:
         if item_cost > player.gold:
             raise ValueError
     except ValueError:
-        print(not_enough_gold := "You don't have enough gold for that.")
-        return return_function(not_enough_gold)
+        print("You don't have enough gold for that.")
