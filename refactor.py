@@ -1,13 +1,18 @@
 from __future__ import annotations
+import enum
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, auto
+from rich import layout
 from scipy.optimize import fsolve
 from scipy.stats import norm
 from rich import print
 from rich.panel import Panel
-from helper import range_of_list
+from rich.prompt import IntPrompt
+from rich.console import Console
+from rich.table import Table
+from rich.layout import Layout
 
 
 class TradeGoods(Enum):
@@ -647,6 +652,9 @@ CITIES = {
             'alcohol': ['wine', 'beer', 'mead']}}
 }
 
+#####################
+# Item Object Classes
+
 
 @dataclass(kw_only=True)
 class Item:
@@ -665,6 +673,7 @@ class PlayerItem(Item):
     Class that describes a PlayerItem object, inherits from Item
 
     """
+    cost = 0
     last_seen_price: int = 0
     last_purchase_price: int = 0
     last_purchase_quantity: int = 0
@@ -699,6 +708,9 @@ class MarketItem(Item):
         self.supply_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
         self.supply_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
 
+
+###################
+# Inventory Classes
 
 @dataclass()
 class Inventory:
@@ -754,7 +766,7 @@ class PlayerInventory(Inventory):
         """
         self.gold = 1000
         for item, info in MARKET_GOODS.items():
-            trade_good = PlayerItem(item_name=item, quantity=1,
+            trade_good = PlayerItem(item_name=item, quantity=0,
                                     category=info['category'], inputs=info['inputs'])
             setattr(self, item, trade_good)
 
@@ -779,22 +791,7 @@ class PlayerInventory(Inventory):
         Returns:
             list[PlayerItem]: PlayerItem Objects
         """
-        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem)]
-
-    def get_current_inventory(self) -> dict[str, dict[str, int]]:
-        """
-        Returns a dictionary within a dictionary of items in inventory with their quanity and cost as a values to their named keys
-
-        Returns:
-            dict[str, dict[str, int]]: dict[name: item_name, {'quantity':item.quantity, 'cost': item.cost}]
-        """
-        current_inv = {}
-        for item in self.get_list_of_items():
-            name = item.item_name
-            quantity = item.quantity
-            cost = item.last_purchase_price
-            current_inv[name] = {'quantity': quantity, 'cost': cost}
-        return current_inv
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), PlayerItem)]
 
 
 @dataclass(kw_only=True)
@@ -819,7 +816,7 @@ class Market(Inventory):
         Returns:
             list[MarketItem]: MarketItem object
         """
-        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), MarketItem)]
 
     def get_market_item(self, item: str) -> PlayerItem:
         """
@@ -918,6 +915,9 @@ class Market(Inventory):
         # price = city.market.item.price()
         # supply = city.market.item.get_supply()
         pass
+
+##################
+# Modifier Classes
 
 
 @dataclass()
@@ -1020,7 +1020,6 @@ class TravelModifier:
     """
     Describes a TravelModifier object, modifies travel speed and thereby time to arrival in a city. This can affect whether or not a player can arrive in time before a MarketEvent expires changing pricing and available good quantities.
     """
-
     speed: float | None
     # pirates: bool | None
     # blockade: bool | None
@@ -1057,6 +1056,9 @@ class TravelModifier:
             list[TravelModifier]: list of all TravelModifier applying to Player | City
         """
         return getattr(obj, 'travel_mod_list')
+
+################
+# Player & City Object Classes
 
 
 @dataclass()
@@ -1148,6 +1150,8 @@ class City:
         return citylist_copy
 
 
+################
+# Game and View Classes
 @dataclass()
 class Game:
     """
@@ -1172,14 +1176,14 @@ class Game:
         self.starting_city = starting_city
         self.player = self.create_player()
 
-    def advance_days(self, time: timedelta):
+    def advance_days(self, time_to_advance: timedelta):
         """
         Advances game time by a datetime.timedelta
 
         Args:
             time (timedelta): timedelta is defined in datetime module
         """
-        self.current_date += time
+        self.current_date += time_to_advance
 
     def build_cities(self) -> None:
         """
@@ -1252,10 +1256,13 @@ class View:
         Initializes View object, defines menu and keyword attributes not set in @dataclass() init
         """
         self.game = Game()
-        self.menu = ['Travel', 'Trade', 'Inventory', 'Quit']
+        self.menu = ['Travel', 'Trade', 'Inventory', 'Wait', 'Quit']
         self.menu_selection = None
         self.user_last_action = None
         self.time_passed = None
+        self.user_selection = None
+        self.layout = Layout()
+        self.console = Console()
 
     def game_loop(self):
         """
@@ -1263,63 +1270,40 @@ class View:
         """
         while self.menu_selection != 'Quit':
             Market.update_market(self.game.player.location)
-            self.game_menu()
+            self.main_menu_view()
             self.process_input()
 
-    def clear_sceen(self):
-        """
-        Function that clears screen depending on what OS user is running
-        """
-        os.system('clear' if os.name == 'posix' else 'cls')
-
-    def print_game_status(self):
-        """
-        Simple game status method intended to be called at start of each turn or menu selection
-        """
-        print(Panel.fit("[bold yellow] Hi, I'm a Panel", border_style="red"))
-        print(
-            f"Date: {self.game.current_date} Location: {self.game.player.location.name.capitalize()}")
-        print("Time Passed:", self.time_passed)
-        print("Last Action:", self.user_last_action)
-        print("Gold:", self.game.player.inv.gold)
-
-    def print_player_inventory(self):
-        """
-        Prints a formatted list of non-zero quantity player inventory items
-        """
-        player_items: dict[str, dict[str, int]
-                           ] = self.game.player.inv.get_current_inventory()
-
-        print(f"{'Player Inventory':_^60}")
-        print(f"{'Trade Good':^15}{'Quantity':^20}{'Cost':^20}")
-
-        for item, info in player_items.items():
-            quantity: int | None = info.get('quantity')
-            cost: int | None = info.get('cost')
-            if info.get('quantity'):
-                print(f"{item.capitalize():<20} {quantity:<25} {cost:<25}")
-        print('\n')
-
-    def game_menu(self):
+    # Menu selection methods
+    def main_menu_view(self):
         """
         Displays game_menu and asks user for input
 
         """
         self.clear_sceen()
-        self.print_game_status()
+        self.layout.split_column(
+            Layout(name="upper"),
+            Layout(name="lower"))
+        self.layout["upper"].split_row(
+            Layout(name="left"),
+            Layout(name="right"))
+        self.layout["lower"].split_row(
+            Layout(name="left"),
+            Layout(name="right"))
+
+        self.console.print(self.layout)
 
         print("What would you like to do?")
 
         for i, option in enumerate(self.menu):
             print(f"{i+1}. {option}")
 
-        choice = range_of_list(self.menu)
+        choice = self.get_int_input(self.menu)
 
         self.menu_selection = self.menu[choice - 1]
 
-    def travel(self):
+    def travel_view(self):
         self.clear_sceen()
-        self.print_game_status()
+        self.get_game_status()
 
         enumerate_city_dist = enumerate(self.game.player.location.sort_closest_cities(
         ).items())
@@ -1330,82 +1314,145 @@ class View:
             print(f"{i+1}. {city} {distance} (distance in NM)")
             list_of_cities.append((city, distance))
 
-        choice = range_of_list(list_of_cities)
+        choice = self.get_int_input(list_of_cities)
 
         new_location = list_of_cities[choice - 1][0]
 
-        time_passed = Player.get_time_to_travel(
+        self.time_passed = Player.get_time_to_travel(
             self.game.player, self.game.player.location, self.game.get_city(new_location))
-        self.game.advance_days(time_passed)
+        self.game.advance_days(self.time_passed)
         self.game.player.location = self.game.get_city(new_location)
         print(
             f"You have arrived in {self.game.player.location.name.capitalize()}.")
 
-    # needs complete rework on trade system
-    # @staticmethod
-    # def build_item_table(enumerate_item_dict):
-    #     list_of_items = []
-    #     for i, (item, (quantity, price)) in enumerate_item_dict:
-    #         print(f"{i+1}. {item} {item[quantity]} {item[price]}")
-    #         list_of_items.append((item, quantity, price))
-    #     return list_of_items
-
-    # @staticmethod
-    # def build_market_header():
-    #     print(f"{'Market':^60}")
-    #     print(f"{'Trade Good':^20}{'Quantity':>20}{'Cost':^20}")
-
-    # def trade(self):
-    #     self.print_game_status()
-
-    #     enumerate_item_dict = enumerate(
-    #         self.game.player.location.market.get_market_data().items())
-
-    #     list_of_items = []
-
-    #     self.build_market_header()
-    #     list_of_items = self.build_item_table(enumerate_item_dict)
-
-    #     item_choice = range_of_list(list_of_items)
-
-    #     self.user_selection = list_of_items[item_choice - 1]
-
-    #     # calc max amount player can purchase
-    #     max_purchase_qty = self.game.player.inv.gold / self.user_selection[2]
-
-    #     # validate they aren't buying more than the max otherwise prompt input over again
-    #     user_input_qty = range_of_list(range(0, max_purchase_qty))
-
-    #     # once qty selected subtract gold from player
-    #     self.game.player.inv.gold -= user_input_qty * self.user_selection[2]
-
-    #     self.game.player.inv.get_player_item(
-    #         self.user_selection).quantity += user_input_qty
-
-    #     self.game.player.location.market.get_market_item().quantity -= user_input_qty
-
-    #     # get user selection for
-
-    def show_inventory(self):
+    def trade_view(self):
         self.clear_sceen()
-        self.print_game_status()
-        self.print_player_inventory()
+        self.get_game_status()
 
-        exit_inventory = False
-        while not exit_inventory:
-            exit_inventory = input("Enter any key to return to port ")
+        list_of_items = self.game.player.location.market.get_list_of_items()
+
+        self.build_market_header()
+        self.build_item_table(list_of_items)
+
+        choice = self.get_int_input(list_of_items, False)
+
+        self.user_selection = list_of_items[choice - 1]
+
+        # calc max amount player can purchase
+        max_purchase_qty = round(
+            self.game.player.inv.gold / self.user_selection.price)
+
+        # validate they aren't buying more than the max otherwise prompt input over again
+        user_input_qty = self.get_int_input_is_num(max_purchase_qty)
+
+        # once qty selected subtract gold from player
+        self.game.player.inv.gold -= user_input_qty * self.user_selection.price
+        self.game.player.inv.get_player_item(
+            self.user_selection.item_name).quantity += user_input_qty
+
+        self.game.player.location.market.get_market_item(
+            self.user_selection.item_name).quantity -= user_input_qty
+
+    def inventory_view(self):
+        self.clear_sceen()
+        self.get_game_status()
+
+        self.console.print(self.layout)
+        self.user_last_action = self.get_int_input_is_num(5)
+
+    def inventory_table(self):
+        # draw a rich table with inventory that has a quantity
+        # Table title
+        self.clear_sceen()
+        table = Table(title="Player Inventory")
+
+        table.add_column("Trade Good", justify='right', no_wrap=True)
+        table.add_column("Quantity", justify='left', no_wrap=True)
+        table.add_column("Price", justify='right', no_wrap=True)
+
+        player_item_inventory = self.game.player.inv.get_list_of_items()
+        for item in player_item_inventory:
+            if item.quantity > 0:
+                table.add_row(f"{item.item_name}",
+                              f"{item.quantity}", f"{item.cost}")
+
+        return table
+
+    def wait(self):
+        self.clear_sceen()
+        self.get_game_status()
+
+        # use timedelta to advance day by one
+        next_day_datetime = (self.game.current_date +
+                             timedelta(days=1))
+
+        # use datetime.replace() function to set the date time to start of day when markets refresh
+        next_day_datetime = next_day_datetime.replace(
+            hour=6, minute=0, second=0)
+
+        self.time_passed = next_day_datetime - self.game.current_date
+
+        self.game.advance_days(self.time_passed)
+
+    # helper methods
+    @staticmethod
+    def clear_sceen():
+        """Function that clears screen depending on what OS user is running"""
+        os.system('clear' if os.name == 'posix' else 'cls')
+
+    def get_game_status(self):
+        """
+        Simple game status method intended to be called at start of each turn or menu selection
+        """
+        self.layout["upper"]["right"].update(
+            f"Date: {self.game.current_date} \n Location: {self.game.player.location.name.capitalize()} \n Time Passed: {self.time_passed} \n Last Action: {self.user_last_action} \n  Gold:  {self.game.player.inv.gold}")
+
+    def display_city_distance_table(self, enumerate_city_dist):
+
+        list_of_cities = []
+        for i, (city, distance) in enumerate_city_dist:
+            print(f"{(i+1):^3}. {city} {distance} (distance in NM)")
+            list_of_cities.append((city, distance))
+        return list_of_cities
+
+    @staticmethod
+    def get_int_input(menu_list, show_choices=False):
+        range_of_menu = [str(num) for num in range(1, len(menu_list) + 1)]
+        choice = IntPrompt.ask(
+            f"Please choose a number between 1 and {len(menu_list)}", choices=range_of_menu, show_choices=show_choices)
+        return choice
+
+    @staticmethod
+    def get_int_input_is_num(number, show_choices=False):
+        range_of_menu = [str(num) for num in range(1, number)]
+        choice = IntPrompt.ask(
+            f"Please choose a number between 1 and {number}", choices=range_of_menu, show_choices=show_choices)
+        return choice
+
+    @staticmethod
+    def build_item_table(list_of_items):
+        for index, item in enumerate(list_of_items):
+            print(
+                f"{index+1:<4}{item.item_name:<20}{item.quantity:^20}{item.price:^5}")
+
+    def build_market_header(self):
+        print(f"{'Market':^60}")
+        print(f"{'Trade Good':^20}{'Quantity':>20}{'Cost':^20}")
 
     def process_input(self):
         if self.menu_selection == self.menu[0]:
             self.user_last_action = "Travel"
-            self.travel()
+            self.travel_view()
         elif self.menu_selection == self.menu[1]:
             self.user_last_action = "Trade"
-            self.trade()
+            self.trade_view()
         elif self.menu_selection == self.menu[2]:
             self.user_last_action = "Inventory"
-            self.show_inventory()
+            self.inventory_view()
         elif self.menu_selection == self.menu[3]:
+            self.user_last_action = "Wait"
+            self.wait()
+        elif self.menu_selection == self.menu[4]:
             self.user_last_action = "Quit"
             print(self.user_last_action)
         else:
