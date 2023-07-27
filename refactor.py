@@ -1,10 +1,8 @@
 from __future__ import annotations
-import enum
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum, auto
-from rich import layout
+from enum import Enum, auto, StrEnum
 from scipy.optimize import fsolve
 from scipy.stats import norm
 from rich import print
@@ -15,7 +13,7 @@ from rich.table import Table
 from rich.layout import Layout
 
 
-class TradeGoods(Enum):
+class TradeGoods(StrEnum):
     LINEN = 'linen'
     BROADCLOTH = 'broadcloth'
     CLOTHING = 'clothing'
@@ -46,7 +44,7 @@ class TradeGoods(Enum):
     FURNITURE = 'furniture'
 
 
-class TradeGoodsCategory(Enum):
+class TradeGoodsCategory(StrEnum):
     TEXTILES = 'textiles'
     FORESTRY = 'forestry'
     FARMING = 'farming'
@@ -77,11 +75,11 @@ class SupplyLevel(Enum):
     EXTREME = auto()
 
 
-class Regions(Enum):
-    ENGLISH_CHANNEL = "english channel"
-    NORTH_SEA = "north sea"
-    SOUTH_BALTIC = "south baltic"
-    NORTH_BALTIC = "north baltic"
+class Region(StrEnum):
+    ENGLISH_CHANNEL = "English Channel"
+    NORTH_SEA = "North Sea"
+    SOUTH_BALTIC = "South Baltic"
+    NORTH_BALTIC = "North Baltic"
 
 
 # MARKET_EVENTS is a dictionary of DemandLevel and SupplyLevel events that affect the a given region, city, or market_good.
@@ -115,7 +113,7 @@ MARKET_EVENTS: dict[DemandLevel | SupplyLevel, list[str]] = {
         "In the  region, an increase in construction projects has led to an elevated demand for wood, charcoal, pitch, and furniture.",
         "With the arrival of a travelling troupe in the , the demand for clothing, dyes, and alcohol has seen a notable increase.",
         "As Kampen gears up for its annual music festival, there's an elevated demand for honey and grain to produce mead and beer.",
-        "The latest fashion trend in Bruges has caused an increase in demand for textiles such as linen and broadcloth."
+        "The latest fashion trend in Bruges has caused an increase in demand for textiles such as ."
     ],
     SupplyLevel.ELEVATED: [
         "A mild winter in the  region has led to an early and abundant harvest, providing an elevated supply of grain, flax, and hemp.",
@@ -173,39 +171,47 @@ MARKET_EVENTS: dict[DemandLevel | SupplyLevel, list[str]] = {
     ]
 }
 MARKET_GOODS = {
-    'linen': {'inputs': ['hemp', 'flax'], 'base_price': 10, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
-    'broadcloth': {'inputs': ['wool', 'dyes'], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
-    'clothing': {'inputs': ['linen', 'wool', 'pelts', 'dyes'], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'textiles'},
-    'wood': {'inputs': [None], 'base_price': 30, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'forestry'},
-    'charcoal': {'inputs': ['wood'], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'forestry'},
-    'pitch': {'inputs': ['wood'], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'forestry'},
-    'grain': {'inputs': [None], 'base_price': 30, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
-    'honey': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
-    'hemp': {'inputs': [None], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
-    'flax': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
-    'spices': {'inputs': [None], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
-    'dyes': {'inputs': [None], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'farming'},
-    'wine': {'inputs': [None], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'alcohol'},
-    'mead': {'inputs': ['honey'], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'alcohol'},
-    'beer': {'inputs': ['grain'], 'base_price': 60, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'alcohol'},
-    'fish': {'inputs': ['salt'], 'base_price': 60, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'fishing'},
-    'salt': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'fishing'},
-    'oil': {'inputs': ['fish'], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'fishing'},
-    'meat': {'inputs': ['salt'], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
-    'cheese': {'inputs': ['salt'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
-    'pelts': {'inputs': [None], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
-    'wool': {'inputs': [None], 'base_price': 90, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'ranching'},
-    'iron': {'inputs': [None], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'mining'},
-    'gems': {'inputs': [None], 'base_price': 400, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'mining'},
-    'tools': {'inputs': ['wood', 'iron', ], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
-    'weapons': {'inputs': ['wood', 'iron', 'tools'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
-    'armor': {'inputs': ['wood', 'iron', 'tools', 'clothing'], 'base_price': 300, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
-    'jewelry': {'inputs': ['iron', 'gems', 'tools'], 'base_price': 1000, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'},
-    'furniture': {'inputs': ['wood', 'linen', 'pelts', 'iron'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': 'manufactured_items'}
+    TradeGoods.LINEN: {'inputs': [TradeGoods.HEMP, TradeGoods.FLAX], 'base_price': 10, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.TEXTILES},
+    TradeGoods.BROADCLOTH: {'inputs': [TradeGoods.WOOL, TradeGoods.DYES], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.TEXTILES},
+    TradeGoods.CLOTHING: {'inputs': [TradeGoods.LINEN, TradeGoods.WOOL, TradeGoods.PELTS, TradeGoods.DYES], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.TEXTILES},
+
+    TradeGoods.WOOD: {'inputs': [None], 'base_price': 30, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FORESTRY},
+    TradeGoods.CHARCOAL: {'inputs': [TradeGoods.WOOD], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FORESTRY},
+    TradeGoods.PITCH: {'inputs': [TradeGoods.WOOD], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FORESTRY},
+
+    TradeGoods.GRAIN: {'inputs': [None], 'base_price': 30, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FARMING},
+    TradeGoods.HONEY: {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FARMING},
+    TradeGoods.HEMP: {'inputs': [None], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FARMING},
+    TradeGoods.FLAX: {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FARMING},
+    TradeGoods.SPICES: {'inputs': [None], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FARMING},
+    TradeGoods.DYES: {'inputs': [None], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FARMING},
+
+    TradeGoods.WINE: {'inputs': [None], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.ALCOHOL},
+    TradeGoods.MEAD: {'inputs': [TradeGoods.HONEY], 'base_price': 80, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.ALCOHOL},
+    TradeGoods.BEER: {'inputs': [TradeGoods.GRAIN], 'base_price': 60, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.ALCOHOL},
+    TradeGoods.FISH: {'inputs': ['salt'], 'base_price': 60, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FISHING},
+
+    'salt': {'inputs': [None], 'base_price': 50, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FISHING},
+    TradeGoods.OIL: {'inputs': [TradeGoods.FISH], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.FISHING},
+
+    TradeGoods.MEAT: {'inputs': ['salt'], 'base_price': 120, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.RANCHING},
+    TradeGoods.CHEESE: {'inputs': ['salt'], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.RANCHING},
+    TradeGoods.PELTS: {'inputs': [None], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.RANCHING},
+    TradeGoods.WOOL: {'inputs': [None], 'base_price': 90, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.RANCHING},
+
+    TradeGoods.IRON: {'inputs': [None], 'base_price': 100, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MINING},
+    TradeGoods.GEMS: {'inputs': [None], 'base_price': 400, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MINING},
+
+    TradeGoods.TOOLS: {'inputs': [TradeGoods.WOOD, TradeGoods.IRON, ], 'base_price': 150, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MANUFACTURED_ITEMS},
+    TradeGoods.WEAPONS: {'inputs': [TradeGoods.WOOD, TradeGoods.IRON, TradeGoods.TOOLS], 'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MANUFACTURED_ITEMS},
+    TradeGoods.ARMOR: {'inputs': [TradeGoods.WOOD, TradeGoods.IRON, TradeGoods.TOOLS, TradeGoods.CLOTHING], 'base_price': 300, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MANUFACTURED_ITEMS},
+    TradeGoods.JEWELRY: {'inputs': [TradeGoods.IRON, TradeGoods.GEMS, TradeGoods.TOOLS], 'base_price': 1000, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MANUFACTURED_ITEMS},
+    TradeGoods.FURNITURE: {'inputs': [TradeGoods.WOOD, TradeGoods.LINEN, TradeGoods.PELTS, TradeGoods.IRON],
+                           'base_price': 200, 'demand_sigma': 0.5, 'supply_sigma': 0.5, 'category': TradeGoodsCategory.MANUFACTURED_ITEMS}
 }
 CITIES = {
     'antwerp': {
-        'region': 'english_channel',
+        'region': Region.ENGLISH_CHANNEL,
         'distances': {
             'bruges': 58,
             'bergen': 667,
@@ -225,12 +231,13 @@ CITIES = {
             'tallinn': 1246,
             'visby': 1020},
         'productions': {
-            'textiles': ['linen', 'clothing'],
-            'farming': ['hemp', 'flax', 'dyes', 'honey'],
-            'ranching': ['wool', 'pelts', 'cheese']
+            TradeGoodsCategory.TEXTILES: [TradeGoods.LINEN, TradeGoods.CLOTHING],
+            TradeGoodsCategory.FARMING: [TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY],
+            TradeGoodsCategory.RANCHING: [
+                TradeGoods.WOOL, TradeGoods.PELTS, TradeGoods.CHEESE]
         }},
     'bruges': {
-        'region': 'english_channel',
+        'region': Region.ENGLISH_CHANNEL,
         'distances': {
             'antwerp': 58,
             'bergen': 559,
@@ -250,12 +257,13 @@ CITIES = {
             'tallinn': 1155,
             'visby': 914},
         'productions': {
-            'textiles': ['linen', 'broadcloth', 'clothing'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'spices', 'honey'],
-            'ranching': ['wool', 'pelts', 'cheese']
+            TradeGoodsCategory.TEXTILES: [TradeGoods.LINEN, TradeGoods.BROADCLOTH, TradeGoods.CLOTHING],
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.SPICES, TradeGoods.HONEY],
+            TradeGoodsCategory.RANCHING: [
+                TradeGoods.WOOL, TradeGoods.PELTS, TradeGoods.CHEESE]
         }},
     'bergen': {
-        'region': 'north_sea',
+        'region': Region.NORTH_SEA,
         'distances': {
             'antwerp': 667,
             'bruges': 559,
@@ -275,11 +283,12 @@ CITIES = {
             'tallinn': 1009,
             'visby': 752},
         'productions': {
-            'fishing': ['fish', 'oil'],
-            'forestry': ['wood', 'charcoal', 'pitch']
+            TradeGoodsCategory.FISHING: [TradeGoods.FISH, TradeGoods.OIL],
+            TradeGoodsCategory.FORESTRY: [
+                TradeGoods.WOOD, TradeGoods.CHARCOAL, TradeGoods.PITCH]
         }},
     'bremen': {
-        'region': 'north_sea',
+        'region': Region.NORTH_SEA,
         'distances': {
             'antwerp': 397,
             'bruges': 320,
@@ -299,12 +308,13 @@ CITIES = {
             'tallinn': 995,
             'visby': 764},
         'productions': {
-            'alcohol': ['mead', 'beer', 'wine'],
-            'ranching': ['pelts', 'wool', 'cheese'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey']
+            TradeGoodsCategory.ALCOHOL: [TradeGoods.MEAD, TradeGoods.BEER, TradeGoods.WINE],
+            TradeGoodsCategory.RANCHING: [TradeGoods.PELTS, TradeGoods.WOOL, TradeGoods.CHEESE],
+            TradeGoodsCategory.FARMING: [
+                TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY]
         }},
     'cologne': {
-        'region': 'english_channel',
+        'region': Region.ENGLISH_CHANNEL,
         'distances': {
             'antwerp': 283,
             'bruges': 208,
@@ -324,13 +334,13 @@ CITIES = {
             'tallinn': 1244,
             'visby': 1014},
         'productions': {
-            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
-            'ranching': ['meat', 'cheese', 'pelts', 'wool'],
-            'mining': ['iron', 'gems'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey', 'spices'],
-            'alcohol': ['wine', 'beer', 'mead']}},
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.TOOLS, TradeGoods.WEAPONS, TradeGoods.ARMOR, TradeGoods.JEWELRY, TradeGoods.FURNITURE],
+            TradeGoodsCategory.RANCHING: [TradeGoods.MEAT, TradeGoods.CHEESE, TradeGoods.PELTS, TradeGoods.WOOL],
+            TradeGoodsCategory.MINING: [TradeGoods.IRON, TradeGoods.GEMS],
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY, TradeGoods.SPICES],
+            TradeGoodsCategory.ALCOHOL: [TradeGoods.WINE, TradeGoods.BEER, TradeGoods.MEAD]}},
     'danzig': {
-        'region': 'south_baltic',
+        'region': Region.SOUTH_BALTIC,
         'distances': {
             'antwerp': 935,
             'bruges': 901,
@@ -350,11 +360,11 @@ CITIES = {
             'tallinn': 399,
             'visby': 210},
         'productions': {
-            'farming': ['grain', 'hemp', 'flax', 'honey'],
-            'mining': ['iron', 'gems'], }
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.HONEY],
+            TradeGoodsCategory.MINING: [TradeGoods.IRON, TradeGoods.GEMS], }
     },
     'hamburg': {
-        'region': 'north_sea',
+        'region': Region.NORTH_SEA,
         'distances': {
             'antwerp': 373,
             'bruges': 344,
@@ -374,12 +384,12 @@ CITIES = {
             'tallinn': 1004,
             'visby': 777},
         'productions': {
-            'manufactured_items': ['jewelry', 'furniture'],
-            'fishing': ['fish, oil, salt']
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.JEWELRY, TradeGoods.FURNITURE],
+            TradeGoodsCategory.FISHING: ['fish, oil, salt']
         }
     },
     'kampen': {
-        'region': 'north_sea',
+        'region': Region.NORTH_SEA,
         'distances': {
             'antwerp': 202,
             'bruges': 148,
@@ -399,11 +409,11 @@ CITIES = {
             'tallinn': 1041,
             'visby': 813},
         'productions': {
-            'manufactured_items': ['jewelry', 'furniture'],
-            'fishing': ['fish, oil, salt']}
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.JEWELRY, TradeGoods.FURNITURE],
+            TradeGoodsCategory.FISHING: ['fish, oil, salt']}
     },
     'london': {
-        'region': 'english_channel',
+        'region': Region.ENGLISH_CHANNEL,
         'distances': {
             'antwerp': 182,
             'bruges': 130,
@@ -423,12 +433,12 @@ CITIES = {
             'tallinn': 1235,
             'visby': 993},
         'productions': {
-            'textiles': ['linen', 'broadcloth', 'clothing'],
-            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey']},
+            TradeGoodsCategory.TEXTILES: [TradeGoods.LINEN, TradeGoods.BROADCLOTH, TradeGoods.CLOTHING],
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.TOOLS, TradeGoods.WEAPONS, TradeGoods.ARMOR, TradeGoods.JEWELRY, TradeGoods.FURNITURE],
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY]},
     },
     'lubeck': {
-        'region': 'south_baltic',
+        'region': Region.SOUTH_BALTIC,
         'distances': {
             'antwerp': 704,
             'bruges': 749,
@@ -448,12 +458,12 @@ CITIES = {
             'tallinn': 598,
             'visby': 365},
         'productions': {
-            'fishing': ['salt', 'fish', 'oil'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
-            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture']}
+            TradeGoodsCategory.FISHING: ['salt', TradeGoods.FISH, TradeGoods.OIL],
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY],
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.TOOLS, TradeGoods.WEAPONS, TradeGoods.ARMOR, TradeGoods.JEWELRY, TradeGoods.FURNITURE]}
     },
     'malmo': {
-        'region': 'south_baltic',
+        'region': Region.SOUTH_BALTIC,
         'distances': {
             'antwerp': 669,
             'bruges': 642,
@@ -473,12 +483,12 @@ CITIES = {
             'tallinn': 499,
             'visby': 269},
         'productions': {
-            'forestry': ['wood', 'charcoal', 'pitch'],
-            'fishing': ['fish', 'oil', 'salt'],
-            'manufactured_items': ['tools' 'weapons', 'armor']}
+            TradeGoodsCategory.FORESTRY: [TradeGoods.WOOD, TradeGoods.CHARCOAL, TradeGoods.PITCH],
+            TradeGoodsCategory.FISHING: [TradeGoods.FISH, TradeGoods.OIL, 'salt'],
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.TOOLS, TradeGoods.WEAPONS, TradeGoods.ARMOR]}
     },
     'novorod': {
-        'region': 'north_baltic',
+        'region': Region.NORTH_BALTIC,
         'distances': {
             'antwerp': 1614,
             'bruges': 1511,
@@ -498,12 +508,12 @@ CITIES = {
             'tallinn': 371,
             'visby': 600},
         'productions': {
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
-            'ranching': ['meat', 'cheese', 'pelts', 'wool'],
-            'mining': ['iron', 'gems']}
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY],
+            TradeGoodsCategory.RANCHING: [TradeGoods.MEAT, TradeGoods.CHEESE, TradeGoods.PELTS, TradeGoods.WOOL],
+            TradeGoodsCategory.MINING: [TradeGoods.IRON, TradeGoods.GEMS]}
     },
     'riga': {
-        'region': 'north_baltic',
+        'region': Region.NORTH_BALTIC,
         'distances': {
             'antwerp': 1198,
             'bruges': 1098,
@@ -523,12 +533,12 @@ CITIES = {
             'tallinn': 187,
             'visby': 222},
         'productions': {
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
-            'mining': ['iron', 'gems'],
-            'forestry': ['wood', 'charcoal', 'pitch']},
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY],
+            TradeGoodsCategory.MINING: [TradeGoods.IRON, TradeGoods.GEMS],
+            TradeGoodsCategory.FORESTRY: [TradeGoods.WOOD, TradeGoods.CHARCOAL, TradeGoods.PITCH]},
     },
     'rostock': {
-        'region': 'south_baltic',
+        'region': Region.SOUTH_BALTIC,
         'distances': {
             'antwerp': 777,
             'bruges': 729,
@@ -547,12 +557,12 @@ CITIES = {
             'stralsund': 58,
             'tallinn': 537,
             'visby': 307},
-        'productions': {'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey'],
-                        'ranching': ['meat', 'cheese', 'pelts', 'wool'],
-                        'fishing': ['fish', 'salt']}
+        'productions': {TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY],
+                        TradeGoodsCategory.RANCHING: [TradeGoods.MEAT, TradeGoods.CHEESE, TradeGoods.PELTS, TradeGoods.WOOL],
+                        TradeGoodsCategory.FISHING: [TradeGoods.FISH, 'salt']}
     },
     'stockholm': {
-        'region': 'north_baltic',
+        'region': Region.NORTH_BALTIC,
         'distances': {
             'antwerp': 1142,
             'bruges': 1032,
@@ -572,11 +582,11 @@ CITIES = {
             'tallinn': 206,
             'visby': 110},
         'productions': {
-            'mining': ['iron', 'gems'],
-            'forestry': ['wood', 'charcoal', 'pitch']},
+            TradeGoodsCategory.MINING: [TradeGoods.IRON, TradeGoods.GEMS],
+            TradeGoodsCategory.FORESTRY: [TradeGoods.WOOD, TradeGoods.CHARCOAL, TradeGoods.PITCH]},
     },
     'stralsund': {
-        'region': 'south_baltic',
+        'region': Region.SOUTH_BALTIC,
         'distances': {
             'antwerp': 779,
             'bruges': 718,
@@ -596,12 +606,12 @@ CITIES = {
             'tallinn': 503,
             'visby': 272},
         'productions': {
-            'textiles': ['linen', 'broadcloth', 'clothing'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'spices', 'honey'],
-            'ranching': ['wool', 'pelts', 'cheese']}
+            TradeGoodsCategory.TEXTILES: [TradeGoods.LINEN, TradeGoods.BROADCLOTH, TradeGoods.CLOTHING],
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.SPICES, TradeGoods.HONEY],
+            TradeGoodsCategory.RANCHING: [TradeGoods.WOOL, TradeGoods.PELTS, TradeGoods.CHEESE]}
     },
     'tallinn': {
-        'region': 'north_baltic',
+        'region': Region.NORTH_BALTIC,
         'distances': {
             'antwerp': 1246,
             'bruges': 1155,
@@ -621,11 +631,11 @@ CITIES = {
             'stralsund': 503,
             'visby': 239},
         'productions': {
-            'fishing': ['fish', 'oil'],
-            'forestry': ['wood', 'charcoal', 'pitch']}
+            TradeGoodsCategory.FISHING: [TradeGoods.FISH, TradeGoods.OIL],
+            TradeGoodsCategory.FORESTRY: [TradeGoods.WOOD, TradeGoods.CHARCOAL, TradeGoods.PITCH]}
     },
     'visby': {
-        'region': 'north_baltic',
+        'region': Region.NORTH_BALTIC,
         'distances': {
             'antwerp': 1020,
             'bruges': 914,
@@ -645,11 +655,11 @@ CITIES = {
             'stralsund': 272,
             'tallinn': 239},
         'productions': {
-            'manufactured_items': ['tools', 'weapons', 'armor', 'jewelry', 'furniture'],
-            'ranching': ['meat', 'cheese', 'pelts', 'wool'],
-            'mining': ['iron', 'gems'],
-            'farming': ['grain', 'hemp', 'flax', 'dyes', 'honey', 'spices'],
-            'alcohol': ['wine', 'beer', 'mead']}}
+            TradeGoodsCategory.MANUFACTURED_ITEMS: [TradeGoods.TOOLS, TradeGoods.WEAPONS, TradeGoods.ARMOR, TradeGoods.JEWELRY, TradeGoods.FURNITURE],
+            TradeGoodsCategory.RANCHING: [TradeGoods.MEAT, TradeGoods.CHEESE, TradeGoods.PELTS, TradeGoods.WOOL],
+            TradeGoodsCategory.MINING: [TradeGoods.IRON, TradeGoods.GEMS],
+            TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY, TradeGoods.SPICES],
+            TradeGoodsCategory.ALCOHOL: [TradeGoods.WINE, TradeGoods.BEER, TradeGoods.MEAD]}}
 }
 
 #####################
@@ -663,8 +673,8 @@ class Item:
     """
     item_name: str
     quantity: int
-    category: str
-    inputs: list[str]
+    category: TradeGoodsCategory
+    inputs: list[TradeGoods]
 
 
 @dataclass()
@@ -725,7 +735,7 @@ class Inventory:
         Returns:
             list[Item]: list of Item objects
         """
-        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item) or isinstance(getattr(self, items), PlayerItem) or isinstance(getattr(self, items), MarketItem)]
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items))]
 
     def has_input(self, trade_good: str) -> list[Item]:
         """
@@ -818,7 +828,7 @@ class Market(Inventory):
         """
         return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), MarketItem)]
 
-    def get_market_item(self, item: str) -> PlayerItem:
+    def get_market_item(self, item: str) -> MarketItem:
         """
         Returns player_item via an accessor method.
 
@@ -1281,14 +1291,16 @@ class View:
         """
         self.clear_sceen()
         self.layout.split_column(
-            Layout(name="upper"),
-            Layout(name="lower"))
+            Layout(name="upper", size=10),
+            Layout(name="lower", size=10))
         self.layout["upper"].split_row(
             Layout(name="left"),
             Layout(name="right"))
         self.layout["lower"].split_row(
             Layout(name="left"),
             Layout(name="right"))
+
+        self.layout["upper"]["right"].update(self.get_game_status())
 
         self.console.print(self.layout)
 
@@ -1311,7 +1323,7 @@ class View:
         list_of_cities = []
 
         for i, (city, distance) in enumerate_city_dist:
-            print(f"{i+1}. {city} {distance} (distance in NM)")
+            print(f"{i+1}. {city.capitalize()} {distance} (distance in NM)")
             list_of_cities.append((city, distance))
 
         choice = self.get_int_input(list_of_cities)
@@ -1355,7 +1367,7 @@ class View:
 
     def inventory_view(self):
         self.clear_sceen()
-        self.get_game_status()
+        self.layout["lower"]["left"].update(self.inventory_table())
 
         self.console.print(self.layout)
         self.user_last_action = self.get_int_input_is_num(5)
@@ -1364,7 +1376,7 @@ class View:
         # draw a rich table with inventory that has a quantity
         # Table title
         self.clear_sceen()
-        table = Table(title="Player Inventory")
+        table = Table.grid("Player Inventory")
 
         table.add_column("Trade Good", justify='right', no_wrap=True)
         table.add_column("Quantity", justify='left', no_wrap=True)
@@ -1403,9 +1415,23 @@ class View:
     def get_game_status(self):
         """
         Simple game status method intended to be called at start of each turn or menu selection
+
+        Updated to use Rich for formatting
         """
-        self.layout["upper"]["right"].update(
-            f"Date: {self.game.current_date} \n Location: {self.game.player.location.name.capitalize()} \n Time Passed: {self.time_passed} \n Last Action: {self.user_last_action} \n  Gold:  {self.game.player.inv.gold}")
+        grid = Table.grid(expand=True)
+
+        grid.add_column(justify="left")
+        grid.add_row()
+        grid.add_row(f"Date: {self.game.current_date}")
+        grid.add_row(
+            f"Location: {self.game.player.location.name.capitalize()}")
+        grid.add_row(f"Time Passed: {self.time_passed}")
+        grid.add_row(f"Last Action: {self.user_last_action}")
+        grid.add_row(f"Gold:  {self.game.player.inv.gold}")
+
+        panel = Panel(grid,)
+
+        return panel
 
     def display_city_distance_table(self, enumerate_city_dist):
 
@@ -1433,7 +1459,7 @@ class View:
     def build_item_table(list_of_items):
         for index, item in enumerate(list_of_items):
             print(
-                f"{index+1:<4}{item.item_name:<20}{item.quantity:^20}{item.price:^5}")
+                f"{index+1:<4}{item.item_name.title():<20}{item.quantity:^20}{item.price:^5}")
 
     def build_market_header(self):
         print(f"{'Market':^60}")
