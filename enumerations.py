@@ -650,3 +650,5 @@ CITIES = {
             TradeGoodsCategory.FARMING: [TradeGoods.GRAIN, TradeGoods.HEMP, TradeGoods.FLAX, TradeGoods.DYES, TradeGoods.HONEY, TradeGoods.SPICES],
             TradeGoodsCategory.ALCOHOL: [TradeGoods.WINE, TradeGoods.BEER, TradeGoods.MEAD]}}
 }
+TRADING_HOUSE_DIALOGUE = [
+    'Ah my lord, come in and welcome! What brings you to the trading house today?', 'Ship drafting too high? Come in and let me see what I can unload for you sire!', 'Another day another denari', 'Loading up for a voyage? Let me know what I can get loaded for you!']

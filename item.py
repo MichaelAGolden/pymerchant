@@ -1,5 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from doctest import OutputChecker
+from sys import exception
 from enumerations import TradeGoods, TradeGoodsCategory, MARKET_GOODS, SupplyLevel, DemandLevel
 
 
@@ -28,6 +30,15 @@ class PlayerItem(Item):
     last_sale_price: int = 0
     last_sale_quantity: int = 0
 
+    def check_sell(self, market_quantity):
+        output = bool
+
+        if self.quantity < market_quantity:
+            output = False
+        else:
+            output = True
+        return output
+
 
 @dataclass()
 class MarketItem(Item):
@@ -46,11 +57,21 @@ class MarketItem(Item):
 
     def __post_init__(self):
         """
-        Post init allows for us to set our demand and supply attributes following initial MarketItem init using @dataclass()
 
-        Values are placeholders for now
         """
         self.demand_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
         self.demand_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
         self.supply_sigma = MARKET_GOODS[self.item_name]['base_price'] / 4
         self.supply_mu = MARKET_GOODS[self.item_name]['base_price'] / 2
+
+    def trade(self):
+        pass
+
+    def check_buy(self, buy_qty, player_gold):
+        output = bool
+        if buy_qty <= self.quantity and player_gold >= buy_qty * self.price:
+            output = True
+            print('passed check_buy')
+        else:
+            output = False
+        return output

@@ -98,7 +98,7 @@ class MarketInv(Inventory):
         Initializes MarketInventory
         """
         for item, info in MARKET_GOODS.items():
-            trade_good = MarketItem(item_name=item, quantity=0,
+            trade_good = MarketItem(item_name=item, quantity=50, price=100,
                                     category=info['category'], inputs=info['inputs'])
             setattr(self, item, trade_good)
 
@@ -139,3 +139,21 @@ class MarketInv(Inventory):
             price = item.price
             market_inv[name] = {'quantity': quantity, 'price': price}
         return market_inv
+
+    def update_item_pricing(self):
+        """_summary_
+        """
+        # placeholder value
+        for item in self.get_list_of_items():
+            item.price = 50
+
+    def update_item_quantity(self):
+        # self.quantity = 100
+        for item in self.get_list_of_items():
+            item.quantity = 50
+
+    def update_item_mu(self):
+        pass
+
+    def update_item_sigma(self):
+        pass

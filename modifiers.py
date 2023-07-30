@@ -1,9 +1,8 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from item import MarketItem
-from tradeentity import City, Player
 
 
 @dataclass()
@@ -36,7 +35,7 @@ class MarketEvent:
     time_sent: datetime
 
     @classmethod
-    def get_MarketEvent(cls, city: City, item: MarketItem):
+    def get_MarketEvent(cls, city, item):
         """
         Returns list of MarketEvent() objects for a given city, item pair
         Allows lookup of specific events with regards to specific items in specific cities
@@ -51,22 +50,6 @@ class MarketEvent:
             getattr(city, event), MarketEvent)]
 
     @classmethod
-    def check_MarketEvent(cls, city: City):
-        """
-        Checks and resolves all MarketEvents in a given city, deleting any events at or beyond expiry
-
-        Args:
-            event (MarketEvent): The kMarketEvent to be deleted
-        Calls:
-            delete_MarketEvent(city)
-        Returns:
-            None
-        """
-        for event in cls.get_all_events(city):
-            if event.time_to_expire <= Game.current_date:
-                cls.delete_MarketEvent(event)
-
-    @classmethod
     def delete_MarketEvent(cls, event: MarketEvent):
         """
         Deletes MarketEvent from city attributes when called
@@ -77,7 +60,7 @@ class MarketEvent:
         delattr(event.affected_city, event.__repr__())
 
     @classmethod
-    def get_all_events(cls, city: City):
+    def get_all_events(cls, city):
         """
         Returns list of MarketEvents in a city when called
 
@@ -90,7 +73,7 @@ class MarketEvent:
         return [getattr(city, events) for events in city.__dict__ if isinstance(getattr(city, events), MarketEvent)]
 
     @classmethod
-    def create_MarketEvent(cls, city: City, event):
+    def create_MarketEvent(cls, city, event):
         """
         Placeholder - working on UUID system for marketevents, MarketEvent Generator
 
@@ -112,7 +95,7 @@ class TravelModifier:
 
     # speed is a % mod ranging from -50% to +50%
     @classmethod
-    def set_travel_modifiers(cls, obj: Player | City, travel_modifier: TravelModifier) -> None:
+    def set_travel_modifiers(cls, obj, travel_modifier):
         """
         Sets or appends TravelModifier Objects to Player | City  objects current TravelModifiers as called by get_travel_modifiers(obj)
 
@@ -131,7 +114,7 @@ class TravelModifier:
         setattr(obj, 'travel_mod_list', mod_list)
 
     @classmethod
-    def get_travel_modifiers(cls, obj: Player | City) -> list[TravelModifier]:
+    def get_travel_modifiers(cls, obj):
         """
         Returns list of TravlelModifier objects for a given object at time of method call
 

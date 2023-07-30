@@ -3,9 +3,8 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
-from datetime import timedelta
-from controller import Game
-from tradeentity import Player
+from datetime import timedelta, datetime
+import random
 
 from rich import print
 from rich.console import Console
@@ -13,6 +12,138 @@ from rich.panel import Panel
 from rich.progress import track
 from rich.prompt import IntPrompt
 from rich.table import Table
+
+from enumerations import CITIES, TRADING_HOUSE_DIALOGUE
+from modifiers import MarketEvent
+from tradeentity import City, Player
+from inventory import MarketInv, PlayerInv
+
+
+@dataclass()
+class Game:
+    """
+    Game class holds all objects necessary for the game, including Player, City, and all of their objects and attriburtes
+
+    Game logic and initialization of game occurs here
+    """
+    current_date = datetime(year=1323, month=7, day=29, hour=6, minute=0)
+    player: Player
+
+    def __init__(self) -> None:
+        """
+        Games
+
+        Args:
+            starting_city (str, optional): Name of starting_city player is located in. Defaults to 'lubeck'.
+        """
+        self.build_cities()
+        self.update_city_inventories()
+        self.player = self.create_player()
+
+    def advance_days(self, time_to_advance: timedelta):
+        """
+        Advances game time by a datetime.timedelta
+
+        Args:
+            time (timedelta): timedelta is defined in datetime module
+        """
+        self.current_date += time_to_advance
+
+    def build_cities(self) -> None:
+        """
+        Creates all city objects for game and assigns them to our game object
+
+        To be run in __init__() function
+
+        Note we use setattr() function because cities are not defined as keyword properties at time of
+        """
+        for city in CITIES.keys():
+            new_city = City(city, travel_mod_list=list())
+            setattr(self, city, new_city)
+
+    def create_player(self) -> Player:
+        """
+        Creates player object for game
+
+        Returns:
+            Player: Player object
+        """
+        city = self.get_city('lubeck')
+        return Player(city, travel_mod_list=[])
+
+    def list_of_cities(self):
+        """
+        Returns list of cities in game
+
+        Returns:
+            List[City]: List of City objects in game
+        """
+        return [city for city in dir(self) if isinstance(getattr(self, city), City)]
+
+    def get_city(self, city: str) -> City:
+        """
+        Returns city by str lookup
+
+        Args:
+            city (str): Name of city, not the City object itself
+
+        Returns:
+            City: City Object
+        """
+        return getattr(self, city)
+
+    @staticmethod
+    def update_market(city):
+        """
+        Updates all prices for items in a given city
+
+        Args:
+            city (City): City we are updating
+        """
+        city.inv.update_item_pricing()
+        city.inv.update_item_quantity()
+
+    def update_city_inventories(self) -> None:
+        """
+        Function to update inventory supply level and pricing for all cities in the game, to be run ONLY once per game day
+        """
+        # for city in self.list_of_cities():
+        #     Economy.update_supply(city)
+        #     Economy.update_demand(city)
+        #     Economy.update_pricing(city)
+        pass
+
+    def check_MarketEvent(self, city: City):
+        """
+        Checks and resolves all MarketEvents in a given city, deleting any events at or beyond expiry
+
+        Args:
+            event (MarketEvent): The kMarketEvent to be deleted
+        Calls:
+            delete_MarketEvent(city)
+        Returns:
+            None
+        """
+        for event in MarketEvent.get_all_events(city):
+            if event.time_to_expire <= self.current_date:
+                MarketEvent.delete_MarketEvent(event)
+
+    @staticmethod
+    def execute_trade(item, quantity, player_inv: PlayerInv, market_inv: MarketInv, buying_or_selling):
+        if buying_or_selling == 'buying':
+            player_inv.get_player_item(item.item_name).quantity += quantity
+
+            market_inv.get_market_item(item.item_name).quantity -= quantity
+
+            player_inv.gold -= item.price * quantity
+        elif buying_or_selling == 'selling':
+            player_inv.get_player_item(item.item_name).quantity -= quantity
+
+            market_inv.get_market_item(item.item_name).quantity += quantity
+
+            player_inv.gold += item.price * quantity
+        else:
+            print("Error, no trade executed")
 
 
 @dataclass
@@ -42,8 +173,8 @@ class View:
         """
         Main loop that runs and draws the screen and calls the relevant functions in from view and game
         """
+        Game.update_market(self.game.player.location)
         while self.menu_selection != 'q':
-            self.game.player.location.update_market(self.game.player.location)
             self.main_menu_view()
             self.process_input()
 
@@ -61,7 +192,7 @@ class View:
         for i, option in enumerate(self.menu):
             print(f"{i+1}. {option}")
 
-        choice = self.get_input_for_range_val(self.menu)
+        choice = self.get_input_main_menu_selection(self.menu)
 
         self.menu_selection = self.menu[choice - 1]
 
@@ -71,7 +202,7 @@ class View:
 
         list_of_cities = self.get_sorted_cities()
 
-        choice = self.get_input_for_range_val(list_of_cities)
+        choice = self.get_input_for_city_choice(list_of_cities)
 
         new_location = list_of_cities[choice - 1][0]
 
@@ -84,7 +215,7 @@ class View:
 
         self.game.advance_days(self.time_passed)
         self.game.player.location = self.game.get_city(new_location)
-
+        Game.update_market(self.game.player.location)
         print(
             f"You have arrived in {self.game.player.location.name.capitalize()}.")
 
@@ -92,28 +223,60 @@ class View:
         self.clear_sceen()
         self.get_game_status()
 
+        # Get list of items in player city
         list_of_items = self.game.player.location.inv.get_list_of_items()
 
+        # render table of items
         self.build_item_table(list_of_items)
 
-        choice = self.get_input_for_range_val(list_of_items, False)
+        buying_or_selling = self.get_buy_sell_choice()
 
-        self.user_selection = list_of_items[choice - 1]
+        # checks if trade valid for trade validation
+        if buying_or_selling == 'buying':
+            # get user input for list_of_items
+            choice = self.get_input_for_item_selection(list_of_items, False)
 
-        # calc max amount player can purchase
-        max_purchase_qty = round(
-            self.game.player.inv.gold / self.user_selection.price)
+            # set user_selection to MarketItem selected
+            self.user_selection = list_of_items[choice]
+            max_trade_qty = round(
+                self.game.player.inv.gold / self.user_selection.price) if self.user_selection.price >= 0 else self.game.player.inv.gold
+            user_input_qty = self.get_input_for_int_val(max_trade_qty)
 
-        # validate they aren't buying more than the max otherwise prompt input over again
-        user_input_qty = self.get_input_for_int_val(max_purchase_qty)
+            trade_valid = self.user_selection.check_buy(
+                user_input_qty, self.game.player.inv.gold)
 
-        # once qty selected subtract gold from player
-        self.game.player.inv.gold -= user_input_qty * self.user_selection.price
-        self.game.player.inv.get_player_item(
-            self.user_selection.item_name).quantity += user_input_qty
+        elif buying_or_selling == 'selling':
+            # get user input for list_of_items
+            choice = self.get_input_for_item_selection(list_of_items, False)
 
-        self.game.player.location.inv.get_market_item(
-            self.user_selection.item_name).quantity -= user_input_qty
+            # set user_selection to MarketItem selected
+            self.user_selection = list_of_items[choice]
+
+            max_trade_qty = self.game.player.inv.get_player_item(
+                self.user_selection.item_name).quantity
+
+            if max_trade_qty == 0:
+                print(
+                    f"Looks like you don't have any {self.user_selection.item_name.capitalize()} to trade sir!")
+                trade_valid = False
+
+            else:
+                user_input_qty = self.get_input_for_int_val(max_trade_qty)
+
+                trade_valid = self.game.player.inv.get_player_item(
+                    self.user_selection.item_name).check_sell(self.user_selection.quantity)
+
+        elif buying_or_selling == 'return':
+            trade_valid = False
+        else:
+            trade_valid = False
+
+        if trade_valid:
+            self.game.execute_trade(self.user_selection, max_trade_qty,
+                                    self.game.player.inv, self.game.player.location.inv, buying_or_selling)
+            input("Trade Complete, press enter to return to docks")
+        else:
+            input("Press enter to return to docks")
 
     def inventory_view(self):
         self.clear_sceen()
@@ -148,9 +311,11 @@ class View:
 
         self.time_passed = next_day_datetime - self.game.current_date
         total_seconds = round(self.time_passed.total_seconds())
+
         for i in track(range(0, total_seconds), "Waiting till next day..."):
             time.sleep(.00001)
         self.game.advance_days(self.time_passed)
+        Game.update_market(self.game.player.location)
 
     def get_game_status(self):
         """
@@ -199,12 +364,34 @@ class View:
             f"Please choose the number coorresponding to your choice between 1 and {value}", choices=range_of_menu, show_choices=show_choices)
         return choice
 
-    @staticmethod
-    def get_input_for_range_val(value, show_choices=False):
+    def get_input_main_menu_selection(self, value, show_choices=False):
         range_of_menu = [str(num) for num in range(1, len(value) + 1)]
         choice = IntPrompt.ask(
-            f"Please enter a whole number between 1 and {len(value)}", choices=range_of_menu, show_choices=show_choices)
+            f"Welcome to the city of {self.game.player.location.name.capitalize()}!\n(Enter a number between 1 and {len(value)}) ", choices=range_of_menu, show_choices=show_choices)
         return choice
+
+    @staticmethod
+    def get_input_for_city_choice(value, show_choices=False):
+        range_of_menu = [str(num) for num in range(1, len(value) + 1)]
+        choice = IntPrompt.ask(
+            f"Where are we sailing to my lord?\n(Enter a number between 1 and {len(value)}) ", choices=range_of_menu, show_choices=show_choices)
+        return choice
+
+    @staticmethod
+    def get_input_for_item_selection(value, show_choices=False):
+        range_of_menu = [str(num) for num in range(1, len(value) + 1)]
+        dialogue = random.choice(TRADING_HOUSE_DIALOGUE)
+        choice = IntPrompt.ask(
+            f"{dialogue}\n(Please enter a whole number between 1 and {len(value)})", choices=range_of_menu, show_choices=show_choices)
+        return choice
+
+    @staticmethod
+    def get_buy_sell_choice():
+        options = ['buying', 'selling', 'exit']
+        range_of_menu = [str(num) for num in range(1, len(options) + 1)]
+        choice = IntPrompt.ask(
+            f"Please select from the following\n[1] Buy\n[2] Sell\n[3] Return to Menu\n ", choices=range_of_menu, show_choices=True)
+        return options[choice - 1]
 
     @staticmethod
     def build_item_table(list_of_items):

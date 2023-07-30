@@ -1,6 +1,17 @@
 # pymerchant - working title
 Python based trading game inspired by old school merchant trading simulations
 
+# Requirements
+This project was built in part with a third party library - Rich
+	Rich
+
+Rich is an MIT licensed third-party library that overwrites some of the base python methods built to provide a Text User Interface for the console that gives us more features and without being a burden on the user.
+
+# To Install Run this command in your terminal
+pip install Rich
+
+
+
 # Premise
 You are a traveling merchant who is starting out and looking to grow your business. You travel between distant cities buying and selling products with the aim of increasing your wealth through your earned profits. Each city has specialized supply and demand for any given item so the key is to find opportunity where you can.
 
