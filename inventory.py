@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from random import normalvariate
 
 from item import Item, PlayerItem, MarketItem
 from enumerations import MARKET_GOODS
@@ -98,7 +99,7 @@ class MarketInv(Inventory):
         Initializes MarketInventory
         """
         for item, info in MARKET_GOODS.items():
-            trade_good = MarketItem(item_name=item, quantity=50, price=100,
+            trade_good = MarketItem(item_name=item, quantity=100, price=100,
                                     category=info['category'], inputs=info['inputs'])
             setattr(self, item, trade_good)
 
@@ -145,15 +146,9 @@ class MarketInv(Inventory):
         """
         # placeholder value
         for item in self.get_list_of_items():
-            item.price = 50
+            item.price = round(normalvariate(item.mu, item.sigma))
 
     def update_item_quantity(self):
         # self.quantity = 100
         for item in self.get_list_of_items():
-            item.quantity = 50
-
-    def update_item_mu(self):
-        pass
-
-    def update_item_sigma(self):
-        pass
+            item.quantity = 100

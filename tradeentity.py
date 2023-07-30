@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from enumerations import CITIES
 from inventory import MarketInv, PlayerInv
-from modifiers import TravelModifier
+# from modifiers import TravelModifier
 
 
 @dataclass()
@@ -27,33 +27,33 @@ class Player:
         time: timedelta
         origin_name = origin.name
         destination_name = destination.name
-        modlist = []
+        # modlist = []
 
         # lookup distance
         destination_distance = CITIES[origin_name].get(
             'distances', {}).get(destination_name)
 
-        # check player state for upgrades
-        if TravelModifier.get_travel_modifiers(player):
-            for mod in TravelModifier.get_travel_modifiers(player):
-                modlist.append(mod)
-                print(mod)
-        if TravelModifier.get_travel_modifiers(origin):
-            for mod in TravelModifier.get_travel_modifiers(origin):
-                modlist.append(mod)
-                print(mod)
-        if TravelModifier.get_travel_modifiers(destination):
-            for mod in TravelModifier.get_travel_modifiers(destination):
-                modlist.append(mod)
-                print(mod)
+        # # check player state for upgrades
+        # if TravelModifier.get_travel_modifiers(player):
+        #     for mod in TravelModifier.get_travel_modifiers(player):
+        #         modlist.append(mod)
+        #         print(mod)
+        # if TravelModifier.get_travel_modifiers(origin):
+        #     for mod in TravelModifier.get_travel_modifiers(origin):
+        #         modlist.append(mod)
+        #         print(mod)
+        # if TravelModifier.get_travel_modifiers(destination):
+        #     for mod in TravelModifier.get_travel_modifiers(destination):
+        #         modlist.append(mod)
+        #         print(mod)
 
-        total_percentage = 1
-        for mod in modlist:
-            total_percentage += mod.speed
-        # sum modlist
+        # total_percentage = 1
+        # for mod in modlist:
+        #     total_percentage += mod.speed
+        # # sum modlist
 
         # randomize the travel time
-        speed = total_percentage * cls.nautical_miles_per_hour
+        speed = 1 * cls.nautical_miles_per_hour
         time_to_travel = destination_distance / speed
 
         time = timedelta(hours=time_to_travel)

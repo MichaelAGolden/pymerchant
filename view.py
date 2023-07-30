@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from datetime import timedelta, datetime
 import random
+from math import floor
 
 from rich import print
 from rich.console import Console
@@ -14,7 +15,6 @@ from rich.prompt import IntPrompt
 from rich.table import Table
 
 from enumerations import CITIES, TRADING_HOUSE_DIALOGUE
-from modifiers import MarketEvent
 from tradeentity import City, Player
 from inventory import MarketInv, PlayerInv
 
@@ -37,7 +37,6 @@ class Game:
             starting_city (str, optional): Name of starting_city player is located in. Defaults to 'lubeck'.
         """
         self.build_cities()
-        self.update_city_inventories()
         self.player = self.create_player()
 
     def advance_days(self, time_to_advance: timedelta):
@@ -103,45 +102,39 @@ class Game:
         city.inv.update_item_pricing()
         city.inv.update_item_quantity()
 
-    def update_city_inventories(self) -> None:
-        """
-        Function to update inventory supply level and pricing for all cities in the game, to be run ONLY once per game day
-        """
-        # for city in self.list_of_cities():
-        #     Economy.update_supply(city)
-        #     Economy.update_demand(city)
-        #     Economy.update_pricing(city)
-        pass
+    # def check_MarketEvent(self, city: City):
+    #     """
+    #     Checks and resolves all MarketEvents in a given city, deleting any events at or beyond expiry
 
-    def check_MarketEvent(self, city: City):
-        """
-        Checks and resolves all MarketEvents in a given city, deleting any events at or beyond expiry
+    #     Args:
+    #         event (MarketEvent): The kMarketEvent to be deleted
+    #     Calls:
+    #         delete_MarketEvent(city)
+    #     Returns:
+    #         None
+    #     """
+    #     for event in MarketEvent.get_all_events(city):
+    #         if event.time_to_expire <= self.current_date:
+    #             MarketEvent.delete_MarketEvent(event)
 
-        Args:
-            event (MarketEvent): The kMarketEvent to be deleted
-        Calls:
-            delete_MarketEvent(city)
-        Returns:
-            None
-        """
-        for event in MarketEvent.get_all_events(city):
-            if event.time_to_expire <= self.current_date:
-                MarketEvent.delete_MarketEvent(event)
-
-    @staticmethod
-    def execute_trade(item, quantity, player_inv: PlayerInv, market_inv: MarketInv, buying_or_selling):
+    def execute_trade(self, item, trade_quantity, player_inv: PlayerInv, market_inv: MarketInv, buying_or_selling):
         if buying_or_selling == 'buying':
-            player_inv.get_player_item(item.item_name).quantity += quantity
+            self.player.inv.get_player_item(
+                item.item_name).quantity += trade_quantity
 
-            market_inv.get_market_item(item.item_name).quantity -= quantity
+            item.quantity -= trade_quantity
 
-            player_inv.gold -= item.price * quantity
+            player_inv.gold -= item.price * trade_quantity
+
         elif buying_or_selling == 'selling':
-            player_inv.get_player_item(item.item_name).quantity -= quantity
+            self.player.inv.get_player_item(
+                item.item_name).quantity -= trade_quantity
 
-            market_inv.get_market_item(item.item_name).quantity += quantity
+            self.player.location.inv.get_market_item(
+                item.item_name).quantity += trade_quantity
 
-            player_inv.gold += item.price * quantity
+            player_inv.gold += item.price * trade_quantity
+
         else:
             print("Error, no trade executed")
 
@@ -173,6 +166,7 @@ class View:
         """
         Main loop that runs and draws the screen and calls the relevant functions in from view and game
         """
+        self.title_screen()
         Game.update_market(self.game.player.location)
         while self.menu_selection != 'q':
             self.main_menu_view()
@@ -187,10 +181,12 @@ class View:
         self.clear_sceen()
         self.get_game_status()
 
+        print(
+            f"Welcome to the city of {self.game.player.location.name.capitalize()}!")
         print("What would you like to do?")
 
-        for i, option in enumerate(self.menu):
-            print(f"{i+1}. {option}")
+        for index, option in enumerate(self.menu):
+            print(f"{index+1}. {option}")
 
         choice = self.get_input_main_menu_selection(self.menu)
 
@@ -225,9 +221,11 @@ class View:
 
         # Get list of items in player city
         list_of_items = self.game.player.location.inv.get_list_of_items()
-
+        player_list_of_items = self.game.player.inv.get_list_of_items()
         # render table of items
-        self.build_item_table(list_of_items)
+
+        print(self.build_trading_item_table(list_of_items))
+        print(self.build_player_item_table(player_list_of_items))
 
         buying_or_selling = self.get_buy_sell_choice()
 
@@ -237,20 +235,22 @@ class View:
             choice = self.get_input_for_item_selection(list_of_items, False)
 
             # set user_selection to MarketItem selected
-            self.user_selection = list_of_items[choice]
-            max_trade_qty = round(
-                self.game.player.inv.gold / self.user_selection.price) if self.user_selection.price >= 0 else self.game.player.inv.gold
-            user_input_qty = self.get_input_for_int_val(max_trade_qty)
+            self.user_selection = list_of_items[choice-1]
+            max_trade_qty = floor(
+                self.game.player.inv.gold / self.user_selection.price)
 
-            trade_valid = self.user_selection.check_buy(
-                user_input_qty, self.game.player.inv.gold)
+            if max_trade_qty > 0:
+                user_input_qty = self.get_input_for_qty_buy(max_trade_qty)
+
+                trade_valid = self.user_selection.check_buy(
+                    user_input_qty, self.game.player.inv.gold)
 
         elif buying_or_selling == 'selling':
             # get user input for list_of_items
             choice = self.get_input_for_item_selection(list_of_items, False)
 
             # set user_selection to MarketItem selected
-            self.user_selection = list_of_items[choice]
+            self.user_selection = list_of_items[choice-1]
 
             max_trade_qty = self.game.player.inv.get_player_item(
                 self.user_selection.item_name).quantity
@@ -261,10 +261,12 @@ class View:
                 trade_valid = False
 
             else:
-                user_input_qty = self.get_input_for_int_val(max_trade_qty)
+                user_input_qty = self.get_input_for_qty_sell(max_trade_qty)
 
-                trade_valid = self.game.player.inv.get_player_item(
-                    self.user_selection.item_name).check_sell(self.user_selection.quantity)
+                player_item_to_check = self.game.player.inv.get_player_item(
+                    self.user_selection.item_name)
+
+                trade_valid = player_item_to_check.check_sell()
 
         elif buying_or_selling == 'return':
             trade_valid = False
@@ -272,7 +274,7 @@ class View:
             trade_valid = False
 
         if trade_valid:
-            self.game.execute_trade(self.user_selection, max_trade_qty,
+            self.game.execute_trade(self.user_selection, user_input_qty,
                                     self.game.player.inv, self.game.player.location.inv, buying_or_selling)
             input("Trade Complete, press enter to return to docks")
         else:
@@ -281,20 +283,8 @@ class View:
     def inventory_view(self):
         self.clear_sceen()
         self.get_game_status()
-        table = Table.grid("Player Inventory")
+        self.build_player_item_table(self.game.player.inv.get_list_of_items())
 
-        table.add_column("Trade Good", justify='right', no_wrap=True)
-        table.add_column("Quantity", justify='left', no_wrap=True)
-        table.add_column("Price", justify='right', no_wrap=True)
-        table.add_column("Last Purchase Price", justify='right', no_wrap=True)
-        table.add_column("Last Seen Price", justify='right', no_wrap=True)
-
-        player_item_inventory = self.game.player.inv.get_list_of_items()
-        for item in player_item_inventory:
-            if item.quantity > 0:
-                table.add_row(f"{item.item_name}",
-                              f"{item.quantity}", f"{item.cost}")
-        print(table)
         input("Press enter key to continue...")
 
     def wait(self):
@@ -367,7 +357,7 @@ class View:
     def get_input_main_menu_selection(self, value, show_choices=False):
         range_of_menu = [str(num) for num in range(1, len(value) + 1)]
         choice = IntPrompt.ask(
-            f"Welcome to the city of {self.game.player.location.name.capitalize()}!\n(Enter a number between 1 and {len(value)}) ", choices=range_of_menu, show_choices=show_choices)
+            f"(Enter a number between 1 and {len(value)}) ", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
@@ -380,22 +370,40 @@ class View:
     @staticmethod
     def get_input_for_item_selection(value, show_choices=False):
         range_of_menu = [str(num) for num in range(1, len(value) + 1)]
-        dialogue = random.choice(TRADING_HOUSE_DIALOGUE)
+
         choice = IntPrompt.ask(
-            f"{dialogue}\n(Please enter a whole number between 1 and {len(value)})", choices=range_of_menu, show_choices=show_choices)
+            f"(Please enter a whole number between 1 and {len(value)})", choices=range_of_menu, show_choices=show_choices)
+        return choice
+
+    @staticmethod
+    def get_input_for_qty_buy(value, show_choices=False):
+        range_of_menu = [str(num) for num in range(1, value + 1)]
+        dialogue = "How many would you like to buy?"
+        choice = IntPrompt.ask(
+            f"{dialogue}\n(Please enter a whole number between 1 and {value})", choices=range_of_menu, show_choices=show_choices)
+        return choice
+
+    @staticmethod
+    def get_input_for_qty_sell(value, show_choices=False):
+        range_of_menu = [str(num) for num in range(1, value + 1)]
+        dialogue = "How many would you like to sell?"
+        choice = IntPrompt.ask(
+            f"{dialogue}\n(Please enter a whole number between 1 and {value})", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
     def get_buy_sell_choice():
         options = ['buying', 'selling', 'exit']
         range_of_menu = [str(num) for num in range(1, len(options) + 1)]
+        dialogue = random.choice(TRADING_HOUSE_DIALOGUE)
+        print(dialogue)
         choice = IntPrompt.ask(
-            f"Please select from the following\n[1] Buy\n[2] Sell\n[3] Return to Menu\n ", choices=range_of_menu, show_choices=True)
+            "Please select from the following\n[1] Buy\n[2] Sell\n[3] Return to Menu\n ", choices=range_of_menu, show_choices=True)
         return options[choice - 1]
 
     @staticmethod
-    def build_item_table(list_of_items):
-        table = Table()
+    def build_trading_item_table(list_of_items):
+        table = Table(title="Trading House Inv")
         table.add_column("#")
         table.add_column("Trade Good")
         table.add_column("Stock")
@@ -403,7 +411,19 @@ class View:
         for index, item in enumerate(list_of_items):
             table.add_row(
                 f"{index+1}", f"{item.item_name.title()}", f"{item.quantity}", f"{item.price}")
-        print(table)
+        return table
+
+    @staticmethod
+    def build_player_item_table(list_of_items):
+        table = Table(title="Cargo Hold Inv")
+        table.add_column("#")
+        table.add_column("Trade Good")
+        table.add_column("Inventory")
+        table.add_column("Cost")
+        for index, item in enumerate(list_of_items):
+            table.add_row(
+                f"{index+1}", f"{item.item_name.title()}", f"{item.quantity}", f"{item.cost}")
+        return table
 
     def process_input(self):
         if self.menu_selection == self.menu[0]:
@@ -419,7 +439,13 @@ class View:
             self.user_last_action = "Wait"
             self.wait()
         elif self.menu_selection == self.menu[4]:
-            self.user_last_action = "q"
-            print(self.user_last_action)
+            self.user_last_action = "Quit"
+            self.menu_selection = 'q'
         else:
             print("Invalid input.")
+
+    def title_screen(self):
+        title = Panel.fit(f"{'PyMerchant':^30}\n" +
+                          "A Hanseatic Trade League Simulation")
+        print(title)
+        input("Press enter to continue")
