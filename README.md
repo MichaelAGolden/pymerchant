@@ -32,5 +32,4 @@ Game is open per requirements, to traveling via ship or caravan, could explore a
 # I studied Finance and Economics and have a BBA in Finance from Texas State 2014
 #
 # As such, I was really most interested in constructing a trading simulation that might have a little more rigor than just purely random numbers and outputs. 
-
 # Update 4/21/24 - revisiting project to see what easy improvements can be made to the game with my knowledge now
