@@ -1,5 +1,9 @@
 # pymerchant - working title
+
 Hanseatic league merchant trading game, written in Python, inspired by old school games like Vermeer, Patrician, 1860, and Port Royale
+
+
+
 
 # Requirements
 Python 3.11
@@ -12,9 +16,11 @@ See the documentation here and review the repo here:
 	Repository: https://github.com/Textualize/rich
 	Documentation: https://rich.readthedocs.io/en/stable/index.html
 
+
 Rich supports both windows and mac/unix systems and supports the classic windows CMD prompt but it has feature support for the new Windows Terminal and it is recommended for better support.
 
 # Install
+
 
 To get the pepare your system to run Pymerchant, using PyPi or your preferred package manager in your terminal or shell enviroment run the command:
 
@@ -75,3 +81,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+# This project has been about 40 days in the making
+I drew inspiration for this game from some of my favorite trading simulation games such as Vermeer, The Patrician IV, Port Royale, 1869 
+ 
+I set out with a goal to capture the simple elements of these games that were enjoyable. I studied Finance and Economics and have a BBA in Finance from Texas State 2014 As such, I was really most interested in constructing a trading simulation that might have a little more rigor than just purely random numbers and outputs. 
+
+# Update 4/21/24 
+revisiting project to see what easy improvements can be made to the game with my knowledge now
