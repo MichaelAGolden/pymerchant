@@ -1,5 +1,5 @@
 # pymerchant - working title
-Python based trading game inspired by old school merchant trading simulations
+Python based trading game inspired by old school merchant trading simulations such as Vermeer and Patrician.
 
 # Premise
 You are a traveling merchant who is starting out and looking to grow your business. You travel between distant cities buying and selling products with the aim of increasing your wealth through your earned profits. Each city has specialized supply and demand for any given item so the key is to find opportunity where you can.
@@ -8,12 +8,12 @@ There are be a variety of city/market types, each with their own unique economie
 
 # Requirements - as outlined in initial project pitch
 
-> 1. Premise is you are a trader in either "olden time" or fantasy world and travel from city to city buying WHOLESALE COMMODITIES to transport and sell elsewhere
+> 1. You are a trader in either in "olden time" or fantasy world and travel from city to city buying wholesale commodities to transport and sell elsewhere
 > 2. Prices are function of supply and demand at city level (fluctuations due to world events, or projects, other competitors, businesses)
 > 3. You can ask in cities about rumors and news, which will hint at future supply and demand changes, thereby give you knowledge about pricing
-> 4. Game is a 360 day 12 month year, where each day you can trade, travel, or wait.
+> 4. Game is played on a 360 day 12 month year, where each day you can trade, travel, or wait.
 
-Game is open per requirements to traveling via ship or caravan, could explore a world traveling game instead of just a regional city trader game.
+Game is open per requirements, to traveling via ship or caravan, could explore a world traveling game instead of just a regional city trader game.
 
 # Elements of play
 
@@ -33,4 +33,4 @@ Game is open per requirements to traveling via ship or caravan, could explore a 
 #
 # As such, I was really most interested in constructing a trading simulation that might have a little more rigor than just purely random numbers and outputs. 
 
-
+# Update 4/21/24 - revisiting project to see what easy improvements can be made to the game with my knowledge now
