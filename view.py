@@ -17,6 +17,7 @@ from rich.table import Table
 from enumerations import CITIES, TRADING_HOUSE_DIALOGUE
 from tradeentity import City, Player
 from inventory import MarketInv, PlayerInv
+from item import Transaction
 
 
 @dataclass()
@@ -126,6 +127,10 @@ class Game:
 
             player_inv.gold -= item.price * trade_quantity
 
+            # update the item cost for the PlayerItem in the PlayerInv
+            player_inv.get_player_item(item.item_name).add_transaction(
+                Transaction(price=item.price, quantity=trade_quantity, type_of_transaction='buy', date=self.current_date))
+
         elif buying_or_selling == 'selling':
             self.player.inv.get_player_item(
                 item.item_name).quantity -= trade_quantity
@@ -134,6 +139,9 @@ class Game:
                 item.item_name).quantity += trade_quantity
 
             player_inv.gold += item.price * trade_quantity
+
+            player_inv.get_player_item(item.item_name).add_transaction(
+                Transaction(price=item.price, quantity=trade_quantity, type_of_transaction='sell', date=self.current_date))
 
         else:
             print("Error, no trade executed")
@@ -224,8 +232,9 @@ class View:
         player_list_of_items = self.game.player.inv.get_list_of_items()
         # render table of items
 
-        print(self.build_trading_item_table(list_of_items))
-        print(self.build_player_item_table(player_list_of_items))
+        table = self.build_combined_inventory_table(
+            list_of_items, player_list_of_items)
+        print(table)
 
         buying_or_selling = self.get_buy_sell_choice()
 
@@ -236,8 +245,12 @@ class View:
 
             # set user_selection to MarketItem selected
             self.user_selection = list_of_items[choice - 1]
+            # floor for max trade quantity taking into account what is available in the market quantity
             max_trade_qty = floor(
                 self.game.player.inv.gold / self.user_selection.price)
+
+            max_trade_qty = min(max_trade_qty, self.game.player.location.inv.get_market_item(
+                self.user_selection.item_name).quantity)
 
             if max_trade_qty > 0:
                 user_input_qty = self.get_input_for_qty_buy(
@@ -285,7 +298,10 @@ class View:
     def inventory_view(self):
         self.clear_sceen()
         self.get_game_status()
-        self.build_player_item_table(self.game.player.inv.get_list_of_items())
+        player_inventory_table = self.build_player_item_table(
+            self.game.player.inv.get_list_of_items())
+
+        print(player_inventory_table)
 
         input("Press enter key to continue...")
 
@@ -353,13 +369,13 @@ class View:
     def get_input_for_int_val(value, show_choices=False):
         range_of_menu = [str(num) for num in range(1, value + 1)]
         choice = IntPrompt.ask(
-            f"Please choose the number coorresponding to your choice between 1 and {value}", choices=range_of_menu, show_choices=show_choices)
+            f"Please choose the number coorresponding to your choice from 1 to {value}", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     def get_input_main_menu_selection(self, value, show_choices=False):
         range_of_menu = [str(num) for num in range(1, len(value) + 1)]
         choice = IntPrompt.ask(
-            f"(Enter a number between 1 and {len(value)}) ", choices=range_of_menu, show_choices=show_choices)
+            f"(Enter a number from 1 to {len(value)}) ", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
@@ -381,7 +397,7 @@ class View:
         range_of_menu = [str(num) for num in range(1, value + 1)]
         dialogue = f"How much {trade_good} would you like to buy?"
         choice = IntPrompt.ask(
-            f"{dialogue}\n(Please enter a whole number between 1 and {value})", choices=range_of_menu, show_choices=show_choices)
+            f"{dialogue}\n(Please enter a whole number from 1 to {value})", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
@@ -389,7 +405,7 @@ class View:
         range_of_menu = [str(num) for num in range(1, value + 1)]
         dialogue = f"How much {trade_good} would you like to sell?"
         choice = IntPrompt.ask(
-            f"{dialogue}\n(Please enter a whole number between 1 and {value})", choices=range_of_menu, show_choices=show_choices)
+            f"{dialogue}\n(Please enter a whole number from 1 to {value})", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
@@ -424,6 +440,49 @@ class View:
         for index, item in enumerate(list_of_items):
             table.add_row(
                 f"{index+1}", f"{item.item_name.title()}", f"{item.quantity}", f"{item.cost}")
+        return table
+
+    @staticmethod
+    def build_combined_inventory_table(trading_house_items, cargo_hold_items):
+        """builds a single table showcasing the trading house and cargo hold inventory inline listed by unique item rows, this is useful for comparing the market prices and the players inventory costs to determine what to buy or sell
+
+        Args:
+            market_items (list[MarketItems]): _description_
+            player_items (list[PlayerItems]): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        table = Table(title="Market and Inventory")
+        table.add_column("#", justify="right")
+        table.add_column("Trade Good", justify="left")
+        table.add_column("Market Qty", justify="right")
+        table.add_column("Market Price", justify="right")
+        table.add_column("Cargo Qty", justify="right")
+        table.add_column("Cargo Cost/Unit", justify="right")
+        table.add_column("Total Cost", justify="right")
+        table.add_column("Market Value", justify="right")
+
+        cargo_hold_dict = {item.item_name: item for item in cargo_hold_items}
+
+        for index, market_item in enumerate(trading_house_items):
+            cargo_item = cargo_hold_dict.get(market_item.item_name)
+            cargo_quantity = cargo_item.quantity if cargo_item else 0
+            cargo_cost_per_unit = cargo_item.cost if cargo_item else 0
+            total_cost = cargo_quantity * cargo_cost_per_unit
+            total_value = cargo_quantity * market_item.price
+
+            table.add_row(
+                str(index + 1),
+                market_item.item_name.title(),
+                str(market_item.quantity),
+                f"{market_item.price}",
+                str(cargo_quantity),
+                f"{cargo_cost_per_unit}",
+                f"{total_cost}",
+                f"{total_value}"
+            )
         return table
 
     def process_input(self):
