@@ -12,6 +12,9 @@ class Inventory:
     Class that describes an Inventory object, super class to PlayerInventory and MarketInventory
     """
 
+    def __repr__(self) -> str:
+        return f"{self.item}"
+
     def get_list_of_items(self) -> list[Item]:
         """
         Returns list of items in inventory

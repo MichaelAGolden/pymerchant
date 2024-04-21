@@ -39,7 +39,7 @@ class Game:
         self.build_cities()
         self.player = self.create_player()
 
-    def advance_days(self, time_to_advance: timedelta):
+    def advance_time(self, time_to_advance: timedelta):
         """
         Advances game time by a datetime.timedelta
 
@@ -209,7 +209,7 @@ class View:
         for i in track(range(0, total_seconds), f"Traveling to {new_location.capitalize()}"):
             time.sleep(.00001)
 
-        self.game.advance_days(self.time_passed)
+        self.game.advance_time(self.time_passed)
         self.game.player.location = self.game.get_city(new_location)
         Game.update_market(self.game.player.location)
         print(
@@ -235,12 +235,13 @@ class View:
             choice = self.get_input_for_item_selection(list_of_items, False)
 
             # set user_selection to MarketItem selected
-            self.user_selection = list_of_items[choice-1]
+            self.user_selection = list_of_items[choice - 1]
             max_trade_qty = floor(
                 self.game.player.inv.gold / self.user_selection.price)
 
             if max_trade_qty > 0:
-                user_input_qty = self.get_input_for_qty_buy(max_trade_qty)
+                user_input_qty = self.get_input_for_qty_buy(
+                    max_trade_qty, self.user_selection.item_name)
 
                 trade_valid = self.user_selection.check_buy(
                     user_input_qty, self.game.player.inv.gold)
@@ -250,18 +251,19 @@ class View:
             choice = self.get_input_for_item_selection(list_of_items, False)
 
             # set user_selection to MarketItem selected
-            self.user_selection = list_of_items[choice-1]
+            self.user_selection = list_of_items[choice - 1]
 
             max_trade_qty = self.game.player.inv.get_player_item(
                 self.user_selection.item_name).quantity
 
             if max_trade_qty == 0:
                 print(
-                    f"Looks like you don't have any {self.user_selection.item_name.capitalize()} to trade sir!")
+                    f"Looks like you don't have any {self.user_selection.item_name} to trade sir!")
                 trade_valid = False
 
             else:
-                user_input_qty = self.get_input_for_qty_sell(max_trade_qty)
+                user_input_qty = self.get_input_for_qty_sell(
+                    max_trade_qty, self.user_selection.item_name)
 
                 player_item_to_check = self.game.player.inv.get_player_item(
                     self.user_selection.item_name)
@@ -304,7 +306,7 @@ class View:
 
         for i in track(range(0, total_seconds), "Waiting till next day..."):
             time.sleep(.00001)
-        self.game.advance_days(self.time_passed)
+        self.game.advance_time(self.time_passed)
         Game.update_market(self.game.player.location)
 
     def get_game_status(self):
@@ -370,23 +372,22 @@ class View:
     @staticmethod
     def get_input_for_item_selection(value, show_choices=False):
         range_of_menu = [str(num) for num in range(1, len(value) + 1)]
-
         choice = IntPrompt.ask(
-            f"(Please enter a whole number between 1 and {len(value)})", choices=range_of_menu, show_choices=show_choices)
+            f"Please select an item from the tables above!\n(Please enter a number between 1 and {len(value)})", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
-    def get_input_for_qty_buy(value, show_choices=False):
+    def get_input_for_qty_buy(value, trade_good, show_choices=False):
         range_of_menu = [str(num) for num in range(1, value + 1)]
-        dialogue = "How many would you like to buy?"
+        dialogue = f"How much {trade_good} would you like to buy?"
         choice = IntPrompt.ask(
             f"{dialogue}\n(Please enter a whole number between 1 and {value})", choices=range_of_menu, show_choices=show_choices)
         return choice
 
     @staticmethod
-    def get_input_for_qty_sell(value, show_choices=False):
+    def get_input_for_qty_sell(value, trade_good, show_choices=False):
         range_of_menu = [str(num) for num in range(1, value + 1)]
-        dialogue = "How many would you like to sell?"
+        dialogue = f"How much {trade_good} would you like to sell?"
         choice = IntPrompt.ask(
             f"{dialogue}\n(Please enter a whole number between 1 and {value})", choices=range_of_menu, show_choices=show_choices)
         return choice
