@@ -1,6 +1,19 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from typing import Literal
+from dataclasses import dataclass, field
 from enumerations import TradeGoods, TradeGoodsCategory, MARKET_GOODS
+from datetime import datetime
+
+
+@dataclass(kw_only=True)
+class Transaction:
+    """
+    Class that describes a Transaction object, used to track the history of a PlayerItem
+    """
+    price: int
+    quantity: int
+    type_of_transaction: Literal['buy', 'sell']
+    date: datetime
 
 
 @dataclass(kw_only=True)
@@ -20,13 +33,33 @@ class PlayerItem(Item):
     Class that describes a PlayerItem object, inherits from Item
 
     """
-    cost = 0
-    # last_seen_price: int = 0
-    # last_purchase_price: int = 0
-    # last_purchase_quantity: int = 0
+    cost: float = 0
+    last_seen_price: int = 0
+    last_purchase_price: int = 0
+    last_purchase_quantity: int = 0
     # last_seen_demand: DemandLevel = DemandLevel.NORMAL
-    # last_sale_price: int = 0
-    # last_sale_quantity: int = 0
+    last_sale_price: int = 0
+    last_sale_quantity: int = 0
+    transaction_history: list[Transaction] = field(default_factory=list)
+
+    def add_transaction(self, transaction):
+        self.transaction_history.append(transaction)
+        self.update_item_cost()
+
+    def update_item_cost(self):
+        # use transaction_history to build out an average cost, computed as the sum of all costs divided by the number of purchases, has a rolling average effect so that the user can sell items and then buy more at a different price and the average will reflect this
+        total_cost = 0
+        total_quantity = 0
+
+        for transaction in self.transaction_history:
+            if transaction.type_of_transaction == 'buy':
+                total_cost += transaction.price * transaction.quantity
+                total_quantity += transaction.quantity
+
+        if total_quantity > 0:
+            self.cost = total_cost / total_quantity
+        else:
+            self.cost = 0
 
     def check_sell(self):
         output = bool
