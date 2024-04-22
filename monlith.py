@@ -1,9 +1,12 @@
 from __future__ import annotations
+from typing import Literal
+from dataclasses import dataclass, field
+from enumerations import TradeGoods, TradeGoodsCategory, MARKET_GOODS, CITIES, TRADING_HOUSE_DIALOGUE
+from datetime import datetime, timedelta
+from random import normalvariate
 
 import os
 import time
-from dataclasses import dataclass
-from datetime import timedelta, datetime
 import random
 from math import floor
 
@@ -14,10 +17,340 @@ from rich.progress import track
 from rich.prompt import IntPrompt
 from rich.table import Table
 
-from enumerations import CITIES, TRADING_HOUSE_DIALOGUE
-from tradeentity import City, Player
-from inventory import MarketInv, PlayerInv
-from item import Transaction
+
+@dataclass(kw_only=True)
+class Transaction:
+    """
+    Class that describes a Transaction object, used to track the history of a PlayerItem
+    """
+    price: int
+    quantity: int
+    type_of_transaction: Literal['buy', 'sell']
+    date: datetime
+
+
+@dataclass(kw_only=True)
+class Item:
+    """
+    Class that describes an Item or "TradeGood", super class to PlayerItem and MarketItem
+    """
+    item_name: TradeGoods
+    quantity: int
+    category: TradeGoodsCategory
+    inputs: list[TradeGoods]
+
+
+@dataclass()
+class PlayerItem(Item):
+    """
+    Class that describes a PlayerItem object, inherits from Item
+
+    """
+    cost: float = 0
+    last_seen_price: int = 0
+    last_purchase_price: int = 0
+    last_purchase_quantity: int = 0
+    # last_seen_demand: DemandLevel = DemandLevel.NORMAL
+    last_sale_price: int = 0
+    last_sale_quantity: int = 0
+    transaction_history: list[Transaction] = field(default_factory=list)
+
+    def add_transaction(self, transaction):
+        self.transaction_history.append(transaction)
+        self.update_item_cost()
+
+    def update_item_cost(self):
+        # use transaction_history to build out an average cost, computed as the sum of all costs divided by the number of purchases, has a rolling average effect so that the user can sell items and then buy more at a different price and the average will reflect this
+        total_cost = 0
+        total_quantity = 0
+
+        for transaction in self.transaction_history:
+            if transaction.type_of_transaction == 'buy':
+                total_cost += transaction.price * transaction.quantity
+                total_quantity += transaction.quantity
+
+        if total_quantity > 0:
+            self.cost = total_cost / total_quantity
+        else:
+            self.cost = 0
+
+    def check_sell(self):
+        output = bool
+        if self.quantity > 0:
+            output = True
+        else:
+            output = False
+        return output
+
+
+@dataclass()
+class MarketItem(Item):
+    """
+    Class that describes a MarketItem object, inherits from Item
+
+    """
+    price: int = 0
+    # demand: DemandLevel = DemandLevel.NORMAL
+    # supply: SupplyLevel = SupplyLevel.NORMAL
+    # previous_price: int = 0
+    # previous_quantity: int = 0
+    # previous_day_demand: DemandLevel = DemandLevel.NORMAL
+    # previous_day_supply: SupplyLevel = SupplyLevel.NORMAL
+
+    def __post_init__(self):
+        """
+
+        """
+        self.sigma = MARKET_GOODS[self.item_name]['sigma']
+        self.mu = MARKET_GOODS[self.item_name]['mu']
+
+    def check_buy(self, buy_qty, player_gold):
+        output = bool
+        if buy_qty <= self.quantity and player_gold >= buy_qty * self.price:
+            output = True
+        else:
+            output = False
+        return output
+
+
+@dataclass()
+class Inventory:
+    """
+    Class that describes an Inventory object, super class to PlayerInventory and MarketInventory
+    """
+
+    def get_list_of_items(self) -> list[Item]:
+        """
+        Returns list of items in inventory
+
+        Returns:
+            list[Item]: list of Item objects
+        """
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), Item)]
+
+    def has_input(self, trade_good: str) -> list[Item]:
+        """
+        Returns list of items that have inputs of a given trade_good
+
+        Args:
+            trade_good (str): TradeGood
+
+        Returns:
+            list[Item]: List of Item objects
+        """
+        return [item for item in self.get_list_of_items(
+        ) if trade_good in item.inputs]
+
+    def has_category(self, trade_good_category: str) -> list[Item]:
+        """
+        Returns list of items that have a specific trade_good_category
+
+        Args:
+            trade_good_category (str): TradeGoodsCategory
+
+        Returns:
+            list[Item]: List of Item objects
+        """
+        return [item for item in self.get_list_of_items() if item.category is trade_good_category]
+
+
+@dataclass(kw_only=True)
+class PlayerInv(Inventory):
+    """
+    Class that describes a PlayerInventory object, inherits from Inventory
+
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes PlayerInventory
+        """
+        self.gold = 1000
+        for item, info in MARKET_GOODS.items():
+            trade_good = PlayerItem(item_name=item, quantity=0,
+                                    category=info['category'], inputs=info['inputs'])
+            setattr(self, item, trade_good)
+
+    def get_player_item(self, item: str) -> PlayerItem:
+        """
+        Returns player_item via an accessor method.
+
+        While not traditionally "pythonic" this prevents runtime errors if an item attribute is not a keyword property of the PlayerInventory
+
+        Args:
+            item (str): item name to lookup
+
+        Returns:
+            PlayerItem: The PlayerItem object
+        """
+        return getattr(self, item)
+
+    def get_list_of_items(self) -> list[PlayerItem]:
+        """
+        Returns list of items of PlayerItem type in PlayerInventory
+
+        Returns:
+            list[PlayerItem]: PlayerItem Objects
+        """
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), PlayerItem)]
+
+
+@dataclass(kw_only=True)
+class MarketInv(Inventory):
+    """
+    Class that describes an MarketInventory object, inherits from Inventory class
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes MarketInventory
+        """
+        for item, info in MARKET_GOODS.items():
+            trade_good = MarketItem(item_name=item, quantity=100, price=100,
+                                    category=info['category'], inputs=info['inputs'])
+            setattr(self, item, trade_good)
+
+    def get_list_of_items(self) -> list[MarketItem]:
+        """
+        Returns list of MarketItems in MarketInventory
+
+        Returns:
+            list[MarketItem]: MarketItem object
+        """
+        return [getattr(self, items) for items in self.__dict__ if isinstance(getattr(self, items), MarketItem)]
+
+    def get_market_item(self, item: str) -> MarketItem:
+        """
+        Returns player_item via an accessor method.
+
+        While not traditionally "pythonic" this prevents runtime errors if an item attribute is not a keyword property of the PlayerInventory
+
+        Args:
+            item (str): item name to lookup
+
+        Returns:
+            PlayerItem: The PlayerItem object
+        """
+        return getattr(self, item)
+
+    def get_market_data(self) -> dict[str, dict[str, int]]:
+        """
+        Returns a list of list of [item_name, item.price, item.quantity] for all items in market
+
+        Returns:
+            list[list[str,int,int]]: [[self.item_name, self.item.price, self.item.quantity]...[]]
+        """
+        market_inv = {}
+        for item in self.get_list_of_items():
+            name = item.item_name
+            quantity = item.quantity
+            price = item.price
+            market_inv[name] = {'quantity': quantity, 'price': price}
+        return market_inv
+
+    def update_item_pricing(self):
+        """_summary_
+        """
+        # placeholder value
+        for item in self.get_list_of_items():
+            item.price = round(normalvariate(item.mu, item.sigma))
+
+    def update_item_quantity(self):
+        # self.quantity = 100
+        for item in self.get_list_of_items():
+            item.quantity = 100
+
+
+# from modifiers import TravelModifier
+
+
+@dataclass()
+class Player:
+    """
+    Describes Player object
+    Player does have access to the City object the player is located in
+    Player also has access to their PlayerInv
+
+    Care is needed to not inadvertently call a cities inventory self.location.inv instead of self.inv
+    """
+    location: City
+    travel_mod_list: list
+    travel_speed = nautical_miles_per_hour = 6
+    inv: PlayerInv = field(default_factory=PlayerInv)
+
+    @classmethod
+    def get_time_to_travel(cls, player: Player, origin: City, destination: City):
+        time: timedelta
+        origin_name = origin.name
+        destination_name = destination.name
+        # modlist = []
+
+        # lookup distance
+        destination_distance = CITIES[origin_name].get(
+            'distances', {}).get(destination_name)
+
+        # # check player state for upgrades
+        # if TravelModifier.get_travel_modifiers(player):
+        #     for mod in TravelModifier.get_travel_modifiers(player):
+        #         modlist.append(mod)
+        #         print(mod)
+        # if TravelModifier.get_travel_modifiers(origin):
+        #     for mod in TravelModifier.get_travel_modifiers(origin):
+        #         modlist.append(mod)
+        #         print(mod)
+        # if TravelModifier.get_travel_modifiers(destination):
+        #     for mod in TravelModifier.get_travel_modifiers(destination):
+        #         modlist.append(mod)
+        #         print(mod)
+
+        # total_percentage = 1
+        # for mod in modlist:
+        #     total_percentage += mod.speed
+        # # sum modlist
+
+        # randomize the travel time
+        speed = 1 * cls.nautical_miles_per_hour
+        time_to_travel = destination_distance / speed
+
+        time = timedelta(hours=time_to_travel)
+
+        return time
+
+
+@dataclass()
+class City:
+    """
+    Describes City Object
+    """
+    name: str
+    travel_mod_list: list
+    inv: MarketInv = field(default_factory=MarketInv)
+
+    def sort_closest_cities(self, city_list=CITIES) -> dict[str, int]:
+        """
+        Sorting function for cities by distance.
+
+        Note: Each distance in the CITIES dictionary was measured by hand from city to city in Google Earth in Nautical Miles by a novice approximation of a sea route.
+
+        Likely these numbers are far off what real maritime sailing distance approximations would be, but I did not have the experience or time to write a program to approximate these distances for me.
+
+        Nevertheless, these approximations are much more accurate than a as the crow flies measure between cities.
+
+        sorting function uses lambda, pythons anoymous function generator
+        lambda returns a value to be used as the key to sort the the list with the second position in the tuple index as the key
+
+        Args:
+            citylist (dict[str: dict[str, Any]]): Dictionary of cities with their coorresponding production attributes, used to build City objects. Defaults to CITIES.
+
+        Returns:
+            dict[str, int]: _description_
+        """
+        city_list_copy = city_list[self.name]['distances'].copy()
+
+        sorted_city_list = dict(
+            sorted(city_list_copy.items(), key=lambda tuple_from_items: tuple_from_items[1]))
+
+        return sorted_city_list
 
 
 @dataclass()

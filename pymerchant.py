@@ -1,4 +1,4 @@
-from view import View
+from monolith import View
 
 
 def main():
